@@ -1,0 +1,4 @@
+{
+  "buildCommand": "mkdir -p public && cp -r step_esg_pipeline/dashboard/* public/ && cp step_esg_pipeline/report.* public/",
+  "outputDirectory": "public"
+}
