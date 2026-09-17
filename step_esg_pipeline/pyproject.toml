@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "step_esg_pipeline"
+version = "0.1.0"
+description = "STEP ESG Link Monitoring, Validation and Automated Replacement Pipeline"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.31.0",
+    "beautifulsoup4>=4.12.0",
+    "pdfplumber>=0.10.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100

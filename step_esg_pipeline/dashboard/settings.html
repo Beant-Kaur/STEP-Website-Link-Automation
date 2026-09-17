@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEP ESG Link Monitor — Settings</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; padding: 30px 20px; margin-bottom: 30px; border-radius: 8px; }
+        header h1 { font-size: 28px; margin-bottom: 8px; }
+        header p { opacity: 0.9; font-size: 14px; }
+        .nav { margin-bottom: 20px; }
+        .nav a { color: #3b82f6; text-decoration: none; font-weight: 600; }
+        .nav a:hover { text-decoration: underline; }
+        .card { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .card h2 { font-size: 18px; margin-bottom: 16px; color: #1e3a8a; }
+        .field { margin-bottom: 14px; }
+        .field label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .field input, .field select { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px; }
+        .field .hint { font-size: 12px; color: #6b7280; margin-top: 4px; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .actions { display: flex; gap: 12px; margin-top: 20px; }
+        button { padding: 10px 18px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-secondary { background: #e5e7eb; color: #374151; }
+        .btn-secondary:hover { background: #d1d5db; }
+        .status { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 16px; display: none; }
+        .status.ok { background: #d1fae5; color: #065f46; display: block; }
+        .status.error { background: #fee2e2; color: #991b1b; display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>STEP ESG Link Monitor</h1>
+            <p>Pipeline configuration and schedule</p>
+        </header>
+        <div class="nav"><a href="index.html">&larr; Back to dashboard</a></div>
+        <div class="status" id="status"></div>
+
+        <form id="settingsForm">
+            <div class="card">
+                <h2>AI Provider</h2>
+                <div class="field">
+                    <label>Provider</label>
+                    <select id="aiProvider">
+                        <option value="mock">Mock (no API calls)</option>
+                        <option value="anthropic">Claude (Anthropic)</option>
+                        <option value="openai">OpenAI</option>
+                        <option value="gemini">Gemini (Google)</option>
+                    </select>
+                    <div class="hint">Select the AI provider for semantic evaluation.</div>
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label>Anthropic API Key</label>
+                        <input type="password" id="anthropicApiKey" placeholder="sk-ant-...">
+                        <div class="hint">Optional. Can also be set in .env as ANTHROPIC_API_KEY.</div>
+                    </div>
+                    <div class="field">
+                        <label>OpenAI API Key</label>
+                        <input type="password" id="openaiApiKey" placeholder="sk-...">
+                        <div class="hint">Optional. Can also be set in .env as OPENAI_API_KEY.</div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label>Claude Model</label>
+                        <input type="text" id="claudeModel" placeholder="claude-3-5-haiku-20241022">
+                    </div>
+                    <div class="field">
+                        <label>OpenAI Model</label>
+                        <input type="text" id="openaiModel" placeholder="gpt-4o-mini">
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Gemini API Key</label>
+                    <input type="password" id="geminiApiKey" placeholder="AIza...">
+                    <div class="hint">Optional. Can also be set in .env as GEMINI_API_KEY.</div>
+                </div>
+                <div class="field">
+                    <label>Gemini Model</label>
+                    <input type="text" id="geminiModel" placeholder="gemini-1.5-flash">
+                </div>
+                <div class="field">
+                    <label>Confidence Threshold</label>
+                    <input type="number" id="confidenceThreshold" step="0.05" min="0" max="1" placeholder="0.8">
+                    <div class="hint">Replacements with confidence below this require human review.</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Schedule</h2>
+                <div class="field">
+                    <label>Enable Scheduled Runs</label>
+                    <select id="scheduleEnabled">
+                        <option value="true">Enabled</option>
+                        <option value="false">Disabled</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label>Frequency</label>
+                        <select id="scheduleFrequency">
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Day of Week</label>
+                        <select id="scheduleDay">
+                            <option value="mon">Monday</option>
+                            <option value="tue">Tuesday</option>
+                            <option value="wed">Wednesday</option>
+                            <option value="thu">Thursday</option>
+                            <option value="fri">Friday</option>
+                            <option value="sat">Saturday</option>
+                            <option value="sun">Sunday</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label>Hour (24h)</label>
+                        <input type="number" id="scheduleHour" min="0" max="23" value="2">
+                    </div>
+                    <div class="field">
+                        <label>Minute</label>
+                        <input type="number" id="scheduleMinute" min="0" max="59" value="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Pipeline Defaults</h2>
+                <div class="field">
+                    <label>STEP Section</label>
+                    <input type="text" id="stepSection" value="ESG Legislative Landscape">
+                </div>
+                <div class="field">
+                    <label>Base URL</label>
+                    <input type="text" id="baseUrl" value="https://step.mykajabi.com/free-digital-content">
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <label>Jurisdiction</label>
+                        <input type="text" id="jurisdiction" placeholder="e.g. EU, UK, IN">
+                    </div>
+                    <div class="field">
+                        <label>Topic</label>
+                        <input type="text" id="topic" placeholder="e.g. CSRD, SFDR">
+                    </div>
+                </div>
+                <div class="field">
+                    <label>Limit Links (0 = all)</label>
+                    <input type="number" id="limit" min="0" value="0">
+                </div>
+            </div>
+
+            <div class="actions">
+                <button type="submit" class="btn-primary">Save Configuration</button>
+                <button type="button" class="btn-secondary" id="runNow">Run Pipeline Now</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function setStatus(message, type) {
+            const el = document.getElementById('status');
+            el.className = 'status ' + type;
+            el.textContent = message;
+        }
+
+        async function loadConfig() {
+            const res = await fetch('/api/config');
+            const cfg = await res.json();
+            document.getElementById('aiProvider').value = cfg.ai?.provider || 'mock';
+            document.getElementById('anthropicApiKey').value = cfg.ai?.anthropic_api_key || '';
+            document.getElementById('openaiApiKey').value = cfg.ai?.openai_api_key || '';
+            document.getElementById('geminiApiKey').value = cfg.ai?.gemini_api_key || '';
+            document.getElementById('claudeModel').value = cfg.ai?.claude_model || 'claude-3-5-haiku-20241022';
+            document.getElementById('openaiModel').value = cfg.ai?.openai_model || 'gpt-4o-mini';
+            document.getElementById('geminiModel').value = cfg.ai?.gemini_model || 'gemini-1.5-flash';
+            document.getElementById('confidenceThreshold').value = cfg.ai?.confidence_threshold ?? 0.8;
+            document.getElementById('scheduleEnabled').value = String(!!cfg.schedule?.enabled);
+            document.getElementById('scheduleFrequency').value = cfg.schedule?.frequency || 'weekly';
+            document.getElementById('scheduleDay').value = cfg.schedule?.day_of_week || 'mon';
+            document.getElementById('scheduleHour').value = cfg.schedule?.hour ?? 2;
+            document.getElementById('scheduleMinute').value = cfg.schedule?.minute ?? 0;
+            document.getElementById('stepSection').value = cfg.pipeline?.step_section || 'ESG Legislative Landscape';
+            document.getElementById('baseUrl').value = cfg.pipeline?.base_url || 'https://step.mykajabi.com/free-digital-content';
+            document.getElementById('jurisdiction').value = cfg.pipeline?.jurisdiction || '';
+            document.getElementById('topic').value = cfg.pipeline?.topic || '';
+            document.getElementById('limit').value = cfg.pipeline?.limit ?? 0;
+        }
+
+        document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                pipeline: {
+                    step_section: document.getElementById('stepSection').value,
+                    base_url: document.getElementById('baseUrl').value,
+                    jurisdiction: document.getElementById('jurisdiction').value,
+                    topic: document.getElementById('topic').value,
+                    limit: parseInt(document.getElementById('limit').value || '0', 10),
+                },
+                schedule: {
+                    enabled: document.getElementById('scheduleEnabled').value === 'true',
+                    frequency: document.getElementById('scheduleFrequency').value,
+                    day_of_week: document.getElementById('scheduleDay').value,
+                    hour: parseInt(document.getElementById('scheduleHour').value || '2', 10),
+                    minute: parseInt(document.getElementById('scheduleMinute').value || '0', 10),
+                },
+                ai: {
+                    provider: document.getElementById('aiProvider').value,
+                    anthropic_api_key: document.getElementById('anthropicApiKey').value,
+                    openai_api_key: document.getElementById('openaiApiKey').value,
+                    gemini_api_key: document.getElementById('geminiApiKey').value,
+                    claude_model: document.getElementById('claudeModel').value,
+                    openai_model: document.getElementById('openaiModel').value,
+                    gemini_model: document.getElementById('geminiModel').value,
+                    confidence_threshold: parseFloat(document.getElementById('confidenceThreshold').value || '0.8'),
+                },
+            };
+            const res = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (data.ok) { setStatus('Configuration saved.', 'ok'); } else { setStatus('Save failed: ' + data.error, 'error'); }
+        });
+
+        document.getElementById('runNow').addEventListener('click', async () => {
+            setStatus('Running pipeline...', 'ok');
+            const res = await fetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+            const data = await res.json();
+            if (data.ok) { setStatus('Pipeline run started. Run ID: ' + data.run_id, 'ok'); } else { setStatus('Run failed: ' + data.error, 'error'); }
+        });
+
+        window.addEventListener('DOMContentLoaded', loadConfig);
+    </script>
+</body>
+</html>

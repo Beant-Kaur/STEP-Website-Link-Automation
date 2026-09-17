@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STEP ESG Legislative Landscape — Link Verification & Management</title>
+  <meta name="description" content="Clean, professional ESG regulatory link monitoring, verification, and management dashboard for STEP." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ================================================================
+       DESIGN SYSTEM & TOKENS
+    ================================================================ */
+    :root {
+      --bg:            #F8FAFC;
+      --surface:       #FFFFFF;
+      --surface-2:     #F1F5F9;
+      --surface-3:     #E2E8F0;
+      --border:        #E2E8F0;
+      --border-strong: #CBD5E1;
+      --text-primary:  #0F172A;
+      --text-secondary:#475569;
+      --text-muted:    #94A3B8;
+      
+      --brand:         #0284C7;
+      --brand-dark:    #0369A1;
+      --brand-light:   #E0F2FE;
+      
+      --green:         #16A34A;
+      --green-dark:    #15803D;
+      --green-bg:      #DCFCE7;
+      
+      --amber:         #D97706;
+      --amber-dark:    #B45309;
+      --amber-bg:      #FEF3C7;
+      
+      --red:           #DC2626;
+      --red-dark:      #B91C1C;
+      --red-bg:        #FEE2E2;
+      
+      --purple:        #7C3AED;
+      --purple-dark:   #6D28D9;
+      --purple-bg:     #EDE9FE;
+      
+      --shadow-sm:     0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md:     0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.04);
+      --shadow-lg:     0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.05);
+      
+      --radius-sm:     6px;
+      --radius:        10px;
+      --radius-lg:     16px;
+      --transition:    0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    [data-theme="dark"] {
+      --bg:            #0B1120;
+      --surface:       #131D31;
+      --surface-2:     #1E293B;
+      --surface-3:     #334155;
+      --border:        #26334D;
+      --border-strong: #3B4D6E;
+      --text-primary:  #F8FAFC;
+      --text-secondary:#94A3B8;
+      --text-muted:    #64748B;
+      
+      --brand:         #38BDF8;
+      --brand-dark:    #0284C7;
+      --brand-light:   #0C4A6E;
+      
+      --green:         #4ADE80;
+      --green-dark:    #22C55E;
+      --green-bg:      #064E3B44;
+      
+      --amber:         #FBBF24;
+      --amber-dark:    #F59E0B;
+      --amber-bg:      #78350F44;
+      
+      --red:           #F87171;
+      --red-dark:      #EF4444;
+      --red-bg:        #7F1D1D44;
+      
+      --purple:        #A78BFA;
+      --purple-dark:   #8B5CF6;
+      --purple-bg:     #4C1D9544;
+    }
+
+    /* Reset & Base */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      transition: background var(--transition), color var(--transition);
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--brand); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ================================================================
+       HEADER / TOPBAR (Centered Title)
+    ================================================================ */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      height: 72px;
+      padding: 0 28px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .topbar-badge {
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--brand-light);
+      color: var(--brand);
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .topbar-center {
+      text-align: center;
+    }
+    .topbar-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+    }
+    .topbar-subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 1px;
+      font-weight: 400;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-primary);
+      transition: all var(--transition);
+      user-select: none;
+    }
+    .btn:hover { background: var(--surface-2); border-color: var(--border-strong); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-primary {
+      background: var(--brand);
+      color: #FFFFFF;
+      border-color: var(--brand);
+    }
+    .btn-primary:hover {
+      background: var(--brand-dark);
+      border-color: var(--brand-dark);
+      color: #FFFFFF;
+    }
+    .btn-success {
+      background: var(--green);
+      color: #FFFFFF;
+      border-color: var(--green);
+    }
+    .btn-success:hover {
+      background: var(--green-dark);
+      border-color: var(--green-dark);
+      color: #FFFFFF;
+    }
+    .btn-amber {
+      background: var(--amber);
+      color: #FFFFFF;
+      border-color: var(--amber);
+    }
+    .btn-amber:hover {
+      background: var(--amber-dark);
+      border-color: var(--amber-dark);
+      color: #FFFFFF;
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    /* Export Dropdown */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    .dropdown-menu {
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-md);
+      min-width: 170px;
+      display: none;
+      z-index: 120;
+      overflow: hidden;
+    }
+    .dropdown.open .dropdown-menu { display: block; }
+    .dropdown-item {
+      display: block;
+      padding: 9px 14px;
+      font-size: 13px;
+      color: var(--text-primary);
+      text-decoration: none;
+      transition: background var(--transition);
+      cursor: pointer;
+    }
+    .dropdown-item:hover { background: var(--surface-2); text-decoration: none; }
+
+    #theme-toggle {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: var(--text-secondary);
+      transition: all var(--transition);
+    }
+    #theme-toggle:hover { border-color: var(--brand); color: var(--brand); }
+
+    /* ================================================================
+       MAIN CONTENT
+    ================================================================ */
+    .main-content {
+      max-width: 1560px;
+      margin: 0 auto;
+      padding: 28px 24px 60px;
+      width: 100%;
+    }
+
+    /* ================================================================
+       KPI CARDS (Strictly 4 Cards)
+    ================================================================ */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      position: relative;
+      transition: all var(--transition);
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: var(--kpi-color, var(--brand));
+    }
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--border-strong);
+    }
+    .kpi-card.active {
+      border-color: var(--kpi-color, var(--brand));
+      box-shadow: 0 0 0 2px var(--kpi-color, var(--brand));
+    }
+    .kpi-num {
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 6px;
+      color: var(--text-primary);
+    }
+    .kpi-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .kpi-total  { --kpi-color: var(--brand); }
+    .kpi-keep   { --kpi-color: var(--green); }
+    .kpi-update { --kpi-color: var(--amber); }
+    .kpi-review { --kpi-color: var(--purple); }
+
+    /* ================================================================
+       FILTER BAR (Simplified ESG Filters)
+    ================================================================ */
+    .filter-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .filter-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+    .filter-control {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 9px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    .filter-control:focus {
+      border-color: var(--brand);
+      background: var(--surface);
+    }
+
+    /* ================================================================
+       RESULTS TABLE
+    ================================================================ */
+    .table-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .table-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .table-header-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .table-header-info {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+    .results-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .results-table thead th {
+      text-align: left;
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-secondary);
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      user-select: none;
+    }
+    .results-table tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background var(--transition);
+    }
+    .results-table tbody tr:hover {
+      background: var(--surface-2);
+    }
+    .results-table tbody tr:last-child {
+      border-bottom: none;
+    }
+    .results-table td {
+      padding: 13px 16px;
+      vertical-align: middle;
+    }
+
+    /* Column Widths */
+    .col-country   { width: 12%; font-weight: 600; }
+    .col-resource  { width: 28%; }
+    .col-status    { width: 10%; }
+    .col-freshness { width: 10%; }
+    .col-regstatus { width: 11%; }
+    .col-issue     { width: 11%; }
+    .col-recommend { width: 12%; }
+    .col-action    { width: 6%; text-align: center; }
+
+    .country-pill {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .resource-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      display: block;
+      margin-bottom: 3px;
+      line-height: 1.4;
+    }
+    .resource-url {
+      font-size: 11px;
+      color: var(--text-muted);
+      word-break: break-all;
+      display: block;
+    }
+    .resource-url a {
+      color: var(--text-muted);
+    }
+    .resource-url a:hover {
+      color: var(--brand);
+    }
+
+    /* ================================================================
+       SIMPLIFIED BADGES
+    ================================================================ */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Status Badges */
+    .badge-keep   { background: var(--green-bg); color: var(--green); }
+    .badge-keep .badge-dot { background: var(--green); }
+    .badge-update { background: var(--amber-bg); color: var(--amber-dark); }
+    .badge-update .badge-dot { background: var(--amber-dark); }
+    .badge-review { background: var(--purple-bg); color: var(--purple); }
+    .badge-review .badge-dot { background: var(--purple); }
+
+    /* Issue Tag */
+    .issue-tag {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--surface-2);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .issue-tag.issue-red {
+      background: var(--red-bg);
+      color: var(--red);
+      border-color: transparent;
+    }
+    .issue-tag.issue-amber {
+      background: var(--amber-bg);
+      color: var(--amber-dark);
+      border-color: transparent;
+    }
+    .issue-tag.issue-purple {
+      background: var(--purple-bg);
+      color: var(--purple);
+      border-color: transparent;
+    }
+
+    /* Authority Badges */
+    .auth-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+    }
+    .auth-official { background: #E0F2FE; color: #0369A1; }
+    .auth-reliable { background: #DCFCE7; color: #15803D; }
+    .auth-other    { background: #F1F5F9; color: #64748B; }
+
+    /* Recommendation cell */
+    .rec-cell {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+    .rec-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--brand);
+    }
+
+    /* ================================================================
+       PAGINATION CONTROLS
+    ================================================================ */
+    .pagination-bar {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: var(--surface);
+    }
+    .pagination-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .page-size-select {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 4px 8px;
+      font-size: 12px;
+      color: var(--text-primary);
+      outline: none;
+    }
+    .pagination-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .page-btn {
+      min-width: 32px;
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-primary);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition);
+    }
+    .page-btn:hover:not(:disabled) {
+      background: var(--surface-2);
+      border-color: var(--border-strong);
+    }
+    .page-btn.active {
+      background: var(--brand);
+      color: #FFFFFF;
+      border-color: var(--brand);
+      font-weight: 700;
+    }
+    .page-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ================================================================
+       VIEW / DETAILS SLIDE-OVER DRAWER
+    ================================================================ */
+    .drawer-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(3px);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition);
+    }
+    .drawer-backdrop.open { opacity: 1; pointer-events: all; }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(720px, 94vw);
+      height: 100vh;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      z-index: 201;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+    .drawer.open { transform: translateX(0); }
+
+    .drawer-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      background: var(--surface);
+    }
+    .drawer-title-wrap { flex: 1; min-width: 0; }
+    .drawer-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.4;
+    }
+    .drawer-tags {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      flex-wrap: wrap;
+    }
+    .drawer-close {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: var(--text-secondary);
+      transition: all var(--transition);
+      flex-shrink: 0;
+    }
+    .drawer-close:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Drawer Sections */
+    .d-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      background: var(--surface);
+    }
+    .d-section-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-secondary);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Result 4-Grid */
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .result-item {
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+    }
+    .result-item-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .result-item-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Problem Description Box */
+    .d-problem-box {
+      margin-top: 14px;
+      background: var(--amber-bg);
+      border: 1px solid rgba(217, 119, 6, 0.3);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    /* Replacement Card */
+    .replacement-box {
+      background: var(--green-bg);
+      border: 1px solid rgba(22, 163, 74, 0.3);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      margin-top: 10px;
+    }
+    .replacement-box-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--green-dark);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .replacement-box-url {
+      font-size: 13px;
+      font-weight: 600;
+      word-break: break-all;
+    }
+    .replacement-box-url a {
+      color: var(--green-dark);
+      text-decoration: underline;
+    }
+    .replacement-box-reason {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-style: italic;
+    }
+
+    /* Implementation Controls */
+    .workflow-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    /* Audit Trail Table */
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 12px;
+    }
+    .history-table th {
+      text-align: left;
+      padding: 8px 10px;
+      background: var(--surface-2);
+      color: var(--text-secondary);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    .history-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-primary);
+    }
+
+    /* Technical Details Accordion */
+    .tech-details {
+      margin-top: 4px;
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      background: var(--surface-2);
+    }
+    .tech-details summary {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    .tech-details-content {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* ================================================================
+       MODAL & TOAST
+    ================================================================ */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border);
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+    .modal-body {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 18px;
+      box-shadow: var(--shadow-lg);
+      z-index: 400;
+      display: none;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      animation: slideUp 0.25s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(12px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Loading Bar */
+    .loading-line {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--brand), var(--purple), var(--brand));
+      background-size: 200% 100%;
+      animation: loadAnim 1.2s infinite linear;
+      z-index: 500;
+      display: none;
+    }
+    @keyframes loadAnim {
+      0% { background-position: 0% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .topbar { grid-template-columns: 1fr auto; height: auto; padding: 14px 20px; gap: 12px; }
+      .topbar-left { display: none; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .filter-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+      .filter-grid { grid-template-columns: 1fr; }
+      .drawer { width: 100vw; }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-line" class="loading-line"></div>
+
+  <!-- HEADER -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-badge">ESG Landscape</span>
+    </div>
+    
+    <div class="topbar-center">
+      <h1 class="topbar-title">STEP ESG Legislative Landscape</h1>
+      <p class="topbar-subtitle">Link Verification &amp; Regulatory Compliance Management</p>
+    </div>
+
+    <div class="topbar-right">
+      <!-- Export Dropdown -->
+      <div class="dropdown" id="export-dropdown">
+        <button class="btn btn-sm" id="btn-export-toggle">
+          📥 Export Report ▾
+        </button>
+        <div class="dropdown-menu">
+          <a class="dropdown-item" id="btn-export-csv" href="/report.csv" download>📄 Export as CSV</a>
+          <a class="dropdown-item" id="btn-export-excel" href="/report.xlsx" download>📊 Export as Excel (.xlsx)</a>
+        </div>
+      </div>
+
+      <button class="btn btn-sm" id="btn-download-data" title="Download raw data as JSON">
+        💾 Download Data
+      </button>
+
+      <button class="btn btn-sm" id="btn-load-report" title="Load previously saved JSON report">
+        📂 Load Previous Report
+      </button>
+      <input type="file" id="file-picker" accept=".json" style="display:none" />
+
+      <button id="theme-toggle" title="Toggle dark/light mode" aria-label="Toggle dark/light mode">🌙</button>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <main class="main-content">
+
+    <!-- KPI SECTION (Strictly 4 Cards) -->
+    <section class="kpi-grid" aria-label="Summary KPIs">
+      <div class="kpi-card kpi-total active" data-status-filter="all" tabindex="0" role="button">
+        <div class="kpi-num" id="kpi-total">—</div>
+        <div class="kpi-label">Total Links Checked</div>
+        <div class="kpi-sub">Across 13 official jurisdictions</div>
+      </div>
+
+      <div class="kpi-card kpi-keep" data-status-filter="keep" tabindex="0" role="button">
+        <div class="kpi-num" id="kpi-keep">—</div>
+        <div class="kpi-label">Links to Keep</div>
+        <div class="kpi-sub">Verified active &amp; current in-force</div>
+      </div>
+
+      <div class="kpi-card kpi-update" data-status-filter="update" tabindex="0" role="button">
+        <div class="kpi-num" id="kpi-update">—</div>
+        <div class="kpi-label">Links Needing Update</div>
+        <div class="kpi-sub">Outdated, replaced, or broken</div>
+      </div>
+
+      <div class="kpi-card kpi-review" data-status-filter="review" tabindex="0" role="button">
+        <div class="kpi-num" id="kpi-review">—</div>
+        <div class="kpi-label">Links Needing Review</div>
+        <div class="kpi-sub">Access blocked or ambiguous text</div>
+      </div>
+    </section>
+
+    <!-- FILTER SECTION (Simplified ESG Filters) -->
+    <section class="filter-section" aria-label="Search and Filters">
+      <div class="filter-grid">
+        <input type="search" id="filter-search" class="filter-control" placeholder="🔍  Search by resource name, country, or URL..." />
+
+        <!-- Country Filter (Strict STEP Sequence) -->
+        <select id="filter-country" class="filter-control">
+          <option value="">All Countries</option>
+          <option value="Bahrain">Bahrain</option>
+          <option value="China">China</option>
+          <option value="European Union">European Union</option>
+          <option value="India">India</option>
+          <option value="Kingdom of Saudi Arabia">Kingdom of Saudi Arabia</option>
+          <option value="Kuwait">Kuwait</option>
+          <option value="Oman">Oman</option>
+          <option value="Qatar">Qatar</option>
+          <option value="Singapore">Singapore</option>
+          <option value="United Arab Emirates">United Arab Emirates</option>
+          <option value="United Kingdom">United Kingdom</option>
+          <option value="United States">United States</option>
+          <option value="Nigeria">Nigeria</option>
+          <option value="South Africa">South Africa</option>
+        </select>
+
+        <!-- Status Filter -->
+        <select id="filter-status" class="filter-control">
+          <option value="">All Statuses</option>
+          <option value="keep">Keep</option>
+          <option value="update">Needs Update</option>
+          <option value="review">Needs Review</option>
+        </select>
+
+        <!-- Freshness Filter -->
+        <select id="filter-freshness" class="filter-control">
+          <option value="">All Freshness</option>
+          <option value="Current">Current</option>
+          <option value="Needs Review">Needs Review</option>
+          <option value="Outdated">Outdated</option>
+          <option value="Unknown">Unknown</option>
+        </select>
+
+        <!-- Regulatory Status Filter -->
+        <select id="filter-regulatory" class="filter-control">
+          <option value="">All Regulatory Statuses</option>
+          <option value="Current">Current</option>
+          <option value="Replaced">Replaced</option>
+          <option value="Withdrawn">Withdrawn</option>
+          <option value="No Longer Applicable">No Longer Applicable</option>
+          <option value="Unclear">Unclear</option>
+        </select>
+
+        <button class="btn btn-sm" id="btn-clear-filters" title="Reset all filters">
+          ✕ Clear
+        </button>
+      </div>
+    </section>
+
+    <!-- RESULTS TABLE -->
+    <section class="table-container" aria-label="Link Validation Results">
+      <div class="table-header">
+        <div class="table-header-title">
+          <span>📋 Link Validation Results</span>
+        </div>
+        <div class="table-header-info" id="table-stats-info">
+          Loading results...
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="results-table" id="links-table">
+          <thead>
+            <tr>
+              <th class="col-country">Country</th>
+              <th class="col-resource">Resource</th>
+              <th class="col-status">Status</th>
+              <th class="col-freshness">Freshness</th>
+              <th class="col-regstatus">Regulatory Status</th>
+              <th class="col-issue">Issue</th>
+              <th class="col-recommend">Recommendation</th>
+              <th class="col-action">Action</th>
+            </tr>
+          </thead>
+          <tbody id="links-tbody">
+            <tr>
+              <td colspan="8">
+                <div class="empty-state">
+                  <div class="empty-icon">⏳</div>
+                  <div style="font-weight:600;font-size:15px">Loading report data...</div>
+                  <div style="font-size:12px;margin-top:4px">Connecting to local audit repository</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- PAGINATION BAR -->
+      <div class="pagination-bar" id="pagination-bar">
+        <div class="pagination-left">
+          <span id="pagination-range">Showing 0–0 of 0</span>
+          <label style="display:flex;align-items:center;gap:6px">
+            <span>Show:</span>
+            <select id="page-size" class="page-size-select">
+              <option value="10">10 / page</option>
+              <option value="25" selected>25 / page</option>
+              <option value="50">50 / page</option>
+            </select>
+          </label>
+        </div>
+        <div class="pagination-right" id="pagination-buttons">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- SLIDE-OVER DRAWER (View / Details) -->
+  <div class="drawer-backdrop" id="drawer-backdrop"></div>
+  <aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="Resource Details">
+    <div class="drawer-header">
+      <div class="drawer-title-wrap">
+        <h2 class="drawer-title" id="drawer-title">—</h2>
+        <div class="drawer-tags" id="drawer-tags">
+          <!-- Country & Status Badges populated by JS -->
+        </div>
+      </div>
+      <button class="drawer-close" id="drawer-close" title="Close details">✕</button>
+    </div>
+
+    <div class="drawer-body" id="drawer-body">
+      <!-- Populated by JS -->
+    </div>
+  </aside>
+
+  <!-- CONFIRMATION MODAL -->
+  <div class="modal-backdrop" id="confirm-modal">
+    <div class="modal-box">
+      <h3 class="modal-title" id="modal-title">Confirm Action</h3>
+      <div class="modal-body" id="modal-message">—</div>
+      <div class="modal-footer">
+        <button class="btn btn-sm" id="modal-cancel">Cancel</button>
+        <button class="btn btn-sm btn-primary" id="modal-confirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING TOAST -->
+  <div class="toast" id="toast">
+    <span id="toast-icon">✓</span>
+    <span id="toast-text">Action completed successfully</span>
+  </div>
+
+  <!-- ================================================================
+       JAVASCRIPT APPLICATION LOGIC
+  ================================================================ */ -->
+  <script>
+  (function () {
+    'use strict';
+
+    // ------------------------------------------------------------------
+    // STEP Country Order (Strict Sequence required by Section 5)
+    // ------------------------------------------------------------------
+    const STEP_COUNTRY_ORDER = [
+      'Bahrain',
+      'China',
+      'European Union',
+      'India',
+      'Kingdom of Saudi Arabia',
+      'Kuwait',
+      'Oman',
+      'Qatar',
+      'Singapore',
+      'United Arab Emirates',
+      'United Kingdom',
+      'United States',
+      'South Africa',
+      'Nigeria'
+    ];
+
+    function getCountryRank(countryName) {
+      if (!countryName) return 999;
+      const idx = STEP_COUNTRY_ORDER.findIndex(
+        c => c.toLowerCase() === String(countryName).trim().toLowerCase()
+      );
+      return idx >= 0 ? idx : 998;
+    }
+
+    // ------------------------------------------------------------------
+    // Simplified Terminology Mappings (Sections 6, 7, 8, 9, 10)
+    // ------------------------------------------------------------------
+    function mapStatus(r) {
+      const fs = (r.final_status || r.classification || '').toUpperCase();
+      const tech = (r.technical_status || '').toUpperCase();
+      const code = r.http_status;
+      
+      if (fs === 'VALID_AND_CURRENT' && tech === 'ACCESSIBLE' && code === 200) {
+        return { key: 'keep', label: 'Keep', badgeClass: 'badge-keep' };
+      }
+      if (['BROKEN', 'BROKEN_SOFT_404', 'WRONG_DESTINATION', 'WORKING_BUT_OUTDATED', 'REPLACE_WITH_OFFICIAL', 'WORKING_BUT_NON_OFFICIAL'].includes(fs) || code === 404) {
+        return { key: 'update', label: 'Needs Update', badgeClass: 'badge-update' };
+      }
+      return { key: 'review', label: 'Needs Review', badgeClass: 'badge-review' };
+    }
+
+    function mapFreshness(r) {
+      const fresh = (r.freshness_status || '').toUpperCase();
+      if (fresh === 'CURRENT_IN_FORCE') return 'Current';
+      if (['COMPLETELY_SUPERSEDED', 'OUTDATED', 'SUPERSEDED'].includes(fresh)) return 'Outdated';
+      if (['HUMAN_REVIEW_REQUIRED', 'STAYED_PENDING_LITIGATION', 'PARTIALLY_SUPERSEDED'].includes(fresh)) return 'Needs Review';
+      return 'Unknown';
+    }
+
+    function mapRegulatoryStatus(r) {
+      const reg = (r.regulatory_status || '').toUpperCase();
+      if (['LEGALLY_BINDING_IN_FORCE', 'IN_FORCE', 'CURRENT'].includes(reg)) return 'Current';
+      if (['SUPERSEDED', 'COMPLETELY_SUPERSEDED', 'PARTIALLY_SUPERSEDED'].includes(reg)) return 'Replaced';
+      if (['REPEALED', 'REPEALED_WITHDRAWN'].includes(reg)) return 'Withdrawn';
+      if (['DISBANDED_TRANSITIONED'].includes(reg)) return 'No Longer Applicable';
+      return 'Unclear';
+    }
+
+    function mapAuthority(r) {
+      const auth = (r.authority_status || r.source_authority_tier || '').toUpperCase();
+      if (['OFFICIAL_REGULATOR', 'OFFICIAL_LEGISLATION', 'EXCHANGE_FILING', 'STANDARDS_BODY', 'TIER 1'].some(k => auth.includes(k))) {
+        return { label: 'Official', cls: 'auth-official', tip: 'Official government, regulator, exchange, or standards body' };
+      }
+      if (auth.includes('TIER 2')) {
+        return { label: 'Reliable', cls: 'auth-reliable', tip: 'Recognized international standards or institutional research body' };
+      }
+      return { label: 'Other', cls: 'auth-other', tip: 'Commercial aggregator or third-party host' };
+    }
+
+    function mapIssue(r) {
+      const issue = (r.issue_description || '').toLowerCase();
+      const tech = (r.technical_status || '').toUpperCase();
+      const fs = (r.final_status || '').toUpperCase();
+      const code = r.http_status;
+      
+      if (code === 404 || issue.includes('not found') || fs === 'BROKEN_SOFT_404') return { text: 'Page not found', cls: 'issue-red' };
+      if (fs === 'WRONG_DESTINATION' || issue.includes('wrong target') || issue.includes('homepage')) return { text: 'Wrong page', cls: 'issue-amber' };
+      if (tech === 'BROKEN' || code >= 500) return { text: 'Broken link', cls: 'issue-red' };
+      if (issue.includes('superseded') || fs === 'WORKING_BUT_OUTDATED' || issue.includes('2021')) return { text: 'Replaced', cls: 'issue-amber' };
+      if (issue.includes('outdated')) return { text: 'Outdated', cls: 'issue-amber' };
+      if (fs === 'REPLACE_WITH_OFFICIAL' || issue.includes('third-party') || issue.includes('aggregator')) return { text: 'Source unclear', cls: 'issue-purple' };
+      if (code === 403 || code === 202 || issue.includes('access challenge') || issue.includes('bot')) return { text: 'Access blocked', cls: 'issue-purple' };
+      if (r.human_review_required || fs === 'HUMAN_REVIEW_REQUIRED') return { text: 'Needs review', cls: 'issue-purple' };
+      return { text: 'None', cls: '' };
+    }
+
+    function mapRecommendation(r) {
+      const issue = mapIssue(r).text;
+      if (issue === 'Page not found') return 'Replace with verified current page';
+      if (issue === 'Wrong page') return 'Replace with correct official resource';
+      if (issue === 'Broken link') return 'Replace with verified current source';
+      if (issue === 'Replaced') return 'Replace with current version';
+      if (issue === 'Outdated') return 'Use latest official version';
+      if (issue === 'Source unclear') return 'Prefer verified official source';
+      if (issue === 'Access blocked') return 'Verify via accessible authoritative source';
+      if (issue === 'Needs review') return 'Human review required';
+      return 'Maintain current link in course';
+    }
+
+    // ------------------------------------------------------------------
+    // State
+    // ------------------------------------------------------------------
+    let allRecords = [];
+    let filteredRecords = [];
+    let activeStatusFilter = 'all';
+    let currentPage = 1;
+    let pageSize = 25;
+
+    // Theme Setup
+    const themeBtn = document.getElementById('theme-toggle');
+    let currentTheme = localStorage.getItem('esg-theme') || 'light';
+    applyTheme(currentTheme);
+
+    themeBtn.addEventListener('click', () => {
+      currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+      localStorage.setItem('esg-theme', currentTheme);
+      applyTheme(currentTheme);
+    });
+
+    function applyTheme(t) {
+      document.documentElement.setAttribute('data-theme', t);
+      themeBtn.textContent = t === 'dark' ? '☀️' : '🌙';
+    }
+
+    // Dropdown toggle
+    const exportDropdown = document.getElementById('export-dropdown');
+    document.getElementById('btn-export-toggle').addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportDropdown.classList.toggle('open');
+    });
+    document.addEventListener('click', () => exportDropdown.classList.remove('open'));
+
+    // Download Data (JSON)
+    document.getElementById('btn-download-data').addEventListener('click', () => {
+      if (!allRecords.length) return showToast('No records loaded to export', '⚠️');
+      const blob = new Blob([JSON.stringify(allRecords, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'step_esg_links_data.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Load Report (JSON File)
+    const filePicker = document.getElementById('file-picker');
+    document.getElementById('btn-load-report').addEventListener('click', () => filePicker.click());
+    filePicker.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = JSON.parse(evt.target.result);
+          if (Array.isArray(data)) {
+            setRecords(data);
+            showToast('Loaded ' + data.length + ' records successfully');
+          }
+        } catch (err) {
+          alert('Error parsing JSON file: ' + err.message);
+        }
+      };
+      reader.readAsText(file, 'utf-8');
+    });
+
+    // ------------------------------------------------------------------
+    // Data Ingestion & Ordering
+    // ------------------------------------------------------------------
+    function setRecords(data) {
+      // Sort strictly by the STEP country sequence
+      allRecords = (data || []).slice().sort((a, b) => {
+        const rankA = getCountryRank(a.jurisdiction);
+        const rankB = getCountryRank(b.jurisdiction);
+        if (rankA !== rankB) return rankA - rankB;
+        return (a.page_title || '').localeCompare(b.page_title || '');
+      });
+      currentPage = 1;
+      updateKpis();
+      applyFilters();
+    }
+
+    async function loadData() {
+      showLoading(true);
+      const candidates = ['/report.json', '/api/report', 'report.json'];
+      let loaded = false;
+      for (const url of candidates) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            const json = await res.json();
+            if (Array.isArray(json) && json.length > 0) {
+              setRecords(json);
+              loaded = true;
+              break;
+            }
+          }
+        } catch (e) {
+          // continue
+        }
+      }
+      showLoading(false);
+      if (!loaded) {
+        document.getElementById('links-tbody').innerHTML = `
+          <tr><td colspan="8">
+            <div class="empty-state">
+              <div class="empty-icon">📂</div>
+              <div style="font-weight:600;font-size:15px">No audit report found</div>
+              <div style="font-size:12px;margin-top:4px">Please run the audit pipeline or click "Load Previous Report"</div>
+            </div>
+          </td></tr>`;
+      }
+    }
+
+    function showLoading(show) {
+      document.getElementById('loading-line').style.display = show ? 'block' : 'none';
+    }
+
+    // ------------------------------------------------------------------
+    // KPI Updates (Strictly 4 Cards)
+    // ------------------------------------------------------------------
+    function updateKpis() {
+      let keepCount = 0;
+      let updateCount = 0;
+      let reviewCount = 0;
+
+      for (const r of allRecords) {
+        const s = mapStatus(r).key;
+        if (s === 'keep') keepCount++;
+        else if (s === 'update') updateCount++;
+        else reviewCount++;
+      }
+
+      document.getElementById('kpi-total').textContent = allRecords.length;
+      document.getElementById('kpi-keep').textContent = keepCount;
+      document.getElementById('kpi-update').textContent = updateCount;
+      document.getElementById('kpi-review').textContent = reviewCount;
+    }
+
+    // KPI Card Click Filter
+    document.querySelectorAll('.kpi-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.kpi-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        activeStatusFilter = card.dataset.statusFilter;
+        // sync dropdown
+        document.getElementById('filter-status').value = activeStatusFilter === 'all' ? '' : activeStatusFilter;
+        currentPage = 1;
+        applyFilters();
+      });
+    });
+
+    // ------------------------------------------------------------------
+    // Filter Logic
+    // ------------------------------------------------------------------
+    document.getElementById('filter-search').addEventListener('input', () => { currentPage = 1; applyFilters(); });
+    document.getElementById('filter-country').addEventListener('change', () => { currentPage = 1; applyFilters(); });
+    document.getElementById('filter-status').addEventListener('change', (e) => {
+      activeStatusFilter = e.target.value || 'all';
+      document.querySelectorAll('.kpi-card').forEach(c => {
+        c.classList.toggle('active', c.dataset.statusFilter === activeStatusFilter);
+      });
+      currentPage = 1;
+      applyFilters();
+    });
+    document.getElementById('filter-freshness').addEventListener('change', () => { currentPage = 1; applyFilters(); });
+    document.getElementById('filter-regulatory').addEventListener('change', () => { currentPage = 1; applyFilters(); });
+
+    document.getElementById('btn-clear-filters').addEventListener('click', () => {
+      document.getElementById('filter-search').value = '';
+      document.getElementById('filter-country').value = '';
+      document.getElementById('filter-status').value = '';
+      document.getElementById('filter-freshness').value = '';
+      document.getElementById('filter-regulatory').value = '';
+      activeStatusFilter = 'all';
+      document.querySelectorAll('.kpi-card').forEach(c => c.classList.toggle('active', c.dataset.statusFilter === 'all'));
+      currentPage = 1;
+      applyFilters();
+    });
+
+    function applyFilters() {
+      const q = document.getElementById('filter-search').value.trim().toLowerCase();
+      const countryF = document.getElementById('filter-country').value;
+      const statusF = activeStatusFilter;
+      const freshF = document.getElementById('filter-freshness').value;
+      const regF = document.getElementById('filter-regulatory').value;
+
+      filteredRecords = allRecords.filter(r => {
+        // Status KPI/Dropdown
+        if (statusF !== 'all') {
+          if (mapStatus(r).key !== statusF) return false;
+        }
+
+        // Country
+        if (countryF && r.jurisdiction !== countryF) return false;
+
+        // Freshness
+        if (freshF && mapFreshness(r) !== freshF) return false;
+
+        // Regulatory
+        if (regF && mapRegulatoryStatus(r) !== regF) return false;
+
+        // Search text
+        if (q) {
+          const hay = [
+            r.jurisdiction,
+            r.page_title,
+            r.step_description,
+            r.anchor_text,
+            r.original_url,
+            r.current_url,
+            r.source_domain
+          ].join(' ').toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+
+        return true;
+      });
+
+      renderTable();
+    }
+
+    // ------------------------------------------------------------------
+    // Table & Pagination Render
+    // ------------------------------------------------------------------
+    document.getElementById('page-size').addEventListener('change', (e) => {
+      pageSize = parseInt(e.target.value);
+      currentPage = 1;
+      renderTable();
+    });
+
+    function renderTable() {
+      const tbody = document.getElementById('links-tbody');
+      const total = filteredRecords.length;
+
+      document.getElementById('table-stats-info').textContent =
+        `Showing ${total} of ${allRecords.length} resources`;
+
+      if (total === 0) {
+        tbody.innerHTML = `
+          <tr><td colspan="8">
+            <div class="empty-state">
+              <div class="empty-icon">🔍</div>
+              <div style="font-weight:600;font-size:15px">No links match your filters</div>
+              <div style="font-size:12px;margin-top:4px">Try adjusting search keywords or filter dropdowns.</div>
+            </div>
+          </td></tr>`;
+        renderPagination(0);
+        return;
+      }
+
+      const totalPages = Math.ceil(total / pageSize) || 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const startIdx = (currentPage - 1) * pageSize;
+      const endIdx = Math.min(startIdx + pageSize, total);
+      const pageRecords = filteredRecords.slice(startIdx, endIdx);
+
+      tbody.innerHTML = pageRecords.map((r, pageI) => {
+        const realIdx = startIdx + pageI;
+        const status = mapStatus(r);
+        const freshness = mapFreshness(r);
+        const regStatus = mapRegulatoryStatus(r);
+        const issue = mapIssue(r);
+        const recommendation = mapRecommendation(r);
+        const currentUrl = r.current_url || r.original_url;
+        const title = r.page_title || r.step_description || r.anchor_text || '(Resource link)';
+
+        return `
+          <tr data-idx="${realIdx}">
+            <td class="col-country">
+              <span class="country-pill">${escHtml(r.jurisdiction || 'General')}</span>
+            </td>
+            <td class="col-resource">
+              <span class="resource-name" title="${escHtml(title)}">${escHtml(title)}</span>
+              <span class="resource-url">
+                <a href="${escHtml(currentUrl)}" target="_blank" rel="noopener">${escHtml(currentUrl)}</a>
+              </span>
+            </td>
+            <td class="col-status">
+              <span class="badge ${status.badgeClass}">
+                <span class="badge-dot"></span>${status.label}
+              </span>
+            </td>
+            <td class="col-freshness">
+              <span style="font-weight:500">${freshness}</span>
+            </td>
+            <td class="col-regstatus">
+              <span style="font-weight:500">${regStatus}</span>
+            </td>
+            <td class="col-issue">
+              ${issue.text !== 'None' ? `<span class="issue-tag ${issue.cls}">${issue.text}</span>` : '<span style="color:var(--text-muted)">—</span>'}
+            </td>
+            <td class="col-recommend">
+              <div class="rec-cell">
+                <div>${recommendation}</div>
+                ${r.replacement_url && r.replacement_verified ? `
+                  <a class="rec-link" href="${escHtml(r.replacement_url)}" target="_blank" rel="noopener">
+                    ✓ Recommended Link
+                  </a>` : ''}
+              </div>
+            </td>
+            <td class="col-action">
+              <button class="btn btn-sm btn-view-drawer" data-idx="${realIdx}">
+                View
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
+
+      // Wire row click & View button
+      tbody.querySelectorAll('.btn-view-drawer').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openDrawer(parseInt(btn.dataset.idx));
+        });
+      });
+      tbody.querySelectorAll('tr[data-idx]').forEach(tr => {
+        tr.addEventListener('click', () => {
+          openDrawer(parseInt(tr.dataset.idx));
+        });
+      });
+
+      renderPagination(total);
+    }
+
+    function renderPagination(total) {
+      const rangeEl = document.getElementById('pagination-range');
+      const btnsEl = document.getElementById('pagination-buttons');
+      if (total === 0) {
+        rangeEl.textContent = 'Showing 0 of 0';
+        btnsEl.innerHTML = '';
+        return;
+      }
+
+      const totalPages = Math.ceil(total / pageSize);
+      const start = (currentPage - 1) * pageSize + 1;
+      const end = Math.min(currentPage * pageSize, total);
+      rangeEl.textContent = `Showing ${start}–${end} of ${total}`;
+
+      let html = '';
+      html += `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">« Prev</button>`;
+
+      for (let p = 1; p <= totalPages; p++) {
+        if (p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1)) {
+          html += `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+        } else if (p === currentPage - 2 || p === currentPage + 2) {
+          html += `<span style="padding:0 4px;color:var(--text-muted)">…</span>`;
+        }
+      }
+
+      html += `<button class="page-btn" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">Next »</button>`;
+      btnsEl.innerHTML = html;
+
+      btnsEl.querySelectorAll('button[data-page]').forEach(b => {
+        b.addEventListener('click', () => {
+          currentPage = parseInt(b.dataset.page);
+          renderTable();
+        });
+      });
+    }
+
+    // ------------------------------------------------------------------
+    // Drawer / View Page (Sections 14, 15, 16, 17, 18, 19)
+    // ------------------------------------------------------------------
+    let activeRecordIndex = -1;
+    const backdrop = document.getElementById('drawer-backdrop');
+    const drawer = document.getElementById('drawer');
+    const drawerClose = document.getElementById('drawer-close');
+
+    backdrop.addEventListener('click', closeDrawer);
+    drawerClose.addEventListener('click', closeDrawer);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+
+    function closeDrawer() {
+      drawer.classList.remove('open');
+      backdrop.classList.remove('open');
+      activeRecordIndex = -1;
+    }
+
+    async function openDrawer(idx) {
+      activeRecordIndex = idx;
+      const r = filteredRecords[idx];
+      if (!r) return;
+
+      const title = r.page_title || r.step_description || r.anchor_text || '(Resource)';
+      const status = mapStatus(r);
+      const freshness = mapFreshness(r);
+      const regStatus = mapRegulatoryStatus(r);
+      const auth = mapAuthority(r);
+      const issue = mapIssue(r);
+      const recommendation = mapRecommendation(r);
+      const currentUrl = r.current_url || r.original_url;
+      const implStatus = r.implementation_status || 'not_reviewed';
+
+      document.getElementById('drawer-title').textContent = title;
+
+      // Header Tags
+      document.getElementById('drawer-tags').innerHTML = `
+        <span class="country-pill">${escHtml(r.jurisdiction || 'General')}</span>
+        <span class="badge ${status.badgeClass}"><span class="badge-dot"></span>${status.label}</span>
+        <span class="badge" style="background:var(--surface-2);color:var(--text-secondary)">Status: ${formatImplStatus(implStatus)}</span>
+      `;
+
+      // Drawer Content Sections
+      const body = document.getElementById('drawer-body');
+      body.innerHTML = `
+        <!-- SECTION A: WHAT IS THIS RESOURCE? -->
+        <section class="d-section">
+          <div class="d-section-title">📌 Resource Information</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Course Section</div>
+              <div style="font-weight:500;font-size:13px">${escHtml(r.step_section || 'ESG Legislative Landscape')}</div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Active Course URL</div>
+              <div style="font-size:13px;word-break:break-all">
+                <a href="${escHtml(currentUrl)}" target="_blank" rel="noopener">${escHtml(currentUrl)} ↗</a>
+              </div>
+            </div>
+            ${r.original_url !== currentUrl ? `
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase">Original STEP URL</div>
+              <div style="font-size:12px;color:var(--text-secondary);word-break:break-all">${escHtml(r.original_url)}</div>
+            </div>` : ''}
+          </div>
+        </section>
+
+        <!-- SECTION B: WHAT IS THE RESULT? -->
+        <section class="d-section">
+          <div class="d-section-title">📊 Validation Assessment</div>
+          <div class="result-grid">
+            <div class="result-item">
+              <div class="result-item-label">Status</div>
+              <div class="result-item-value" style="color:var(--brand)">${status.label}</div>
+            </div>
+            <div class="result-item">
+              <div class="result-item-label">Freshness</div>
+              <div class="result-item-value">${freshness}</div>
+            </div>
+            <div class="result-item">
+              <div class="result-item-label">Regulatory Status</div>
+              <div class="result-item-value">${regStatus}</div>
+            </div>
+            <div class="result-item">
+              <div class="result-item-label">Authority Level</div>
+              <div class="result-item-value" title="${auth.tip}">${auth.label}</div>
+            </div>
+          </div>
+
+          ${issue.text !== 'None' ? `
+            <div class="d-problem-box">
+              <strong>Issue Detected:</strong> ${issue.text}
+              <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">
+                ${escHtml(r.issue_description || 'Identified during live regulatory validation check.')}
+              </div>
+            </div>` : ''}
+        </section>
+
+        <!-- SECTION C: WHAT SHOULD I DO? -->
+        <section class="d-section">
+          <div class="d-section-title">💡 Action &amp; Recommended Replacement</div>
+          <div style="font-size:14px;font-weight:600;color:var(--text-primary)">${recommendation}</div>
+
+          ${r.replacement_url ? `
+            <div class="replacement-box">
+              <div class="replacement-box-label">
+                <span>✓ Recommended Replacement (${r.replacement_verified ? 'Verified Official' : 'Needs Verification'})</span>
+              </div>
+              <div class="replacement-box-url">
+                <a href="${escHtml(r.replacement_url)}" target="_blank" rel="noopener">
+                  ${escHtml(r.replacement_url)} ↗
+                </a>
+              </div>
+              ${r.replacement_reason ? `<div class="replacement-box-reason">${escHtml(r.replacement_reason)}</div>` : ''}
+            </div>` : `
+            <div style="font-size:12px;color:var(--text-muted);margin-top:8px">
+              No automated replacement identified. Manual regulatory research required.
+            </div>`}
+        </section>
+
+        <!-- SECTION D: VERIFICATION & IMPLEMENTATION CONTROLS -->
+        <section class="d-section">
+          <div class="d-section-title">⚙️ Verification &amp; STEP Implementation</div>
+          <div style="font-size:13px;color:var(--text-secondary)">
+            Current Implementation Status: <strong style="color:var(--text-primary)">${formatImplStatus(implStatus)}</strong>
+          </div>
+
+          <div class="workflow-actions" id="workflow-buttons">
+            <!-- Populated conditionally below -->
+          </div>
+
+          <!-- AUDIT TRAIL / HISTORY -->
+          <div style="margin-top:16px">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase">Audit Trail &amp; History</div>
+            <div id="history-container">Loading audit history...</div>
+          </div>
+        </section>
+
+        <!-- SECTION E: TECHNICAL DETAILS (Collapsible) -->
+        <details class="tech-details">
+          <summary>🔍 Technical Details (IT &amp; Compliance Audit)</summary>
+          <div class="tech-details-content">
+            <p><strong>HTTP Status:</strong> ${r.http_status || 'N/A'}</p>
+            <p><strong>Technical Status:</strong> ${escHtml(r.technical_status || 'N/A')}</p>
+            <p><strong>Final URL:</strong> ${escHtml(r.final_url || r.original_url || 'N/A')}</p>
+            <p><strong>Domain:</strong> ${escHtml(r.source_domain || 'N/A')}</p>
+            <p><strong>Content Hash:</strong> ${escHtml(r.content_hash || 'N/A')}</p>
+            ${Array.isArray(r.evidence) && r.evidence.length ? `
+              <div style="margin-top:8px"><strong>Evidence Collected:</strong>
+                <ul style="padding-left:16px;margin-top:4px">
+                  ${r.evidence.map(e => `<li>${escHtml(String(e))}</li>`).join('')}
+                </ul>
+              </div>` : ''}
+          </div>
+        </details>
+      `;
+
+      // Render workflow action buttons
+      const btnWrap = document.getElementById('workflow-buttons');
+      const isVerifiedReplacement = !!(r.replacement_url && r.replacement_verified);
+
+      if (implStatus === 'applied') {
+        btnWrap.innerHTML = `
+          <button class="btn btn-amber" id="btn-revert">
+            ↺ Revert Change
+          </button>
+          <span style="font-size:12px;color:var(--green)">✓ Replacement is currently applied to STEP record</span>
+        `;
+        document.getElementById('btn-revert').addEventListener('click', () => confirmRevert(r));
+      } else if (isVerifiedReplacement) {
+        btnWrap.innerHTML = `
+          <button class="btn btn-success" id="btn-apply">
+            ✓ Verify &amp; Apply
+          </button>
+          <span style="font-size:12px;color:var(--text-muted)">Approves replacement for implementation in STEP landscape</span>
+        `;
+        document.getElementById('btn-apply').addEventListener('click', () => confirmApply(r));
+      } else {
+        btnWrap.innerHTML = `
+          <button class="btn" disabled style="opacity:0.6">
+            Human Review Required
+          </button>
+          <span style="font-size:12px;color:var(--text-muted)">Cannot apply unverified links automatically.</span>
+        `;
+      }
+
+      // Load History
+      loadHistory(r.link_id || r.id);
+
+      // Open Drawer
+      drawer.classList.add('open');
+      backdrop.classList.add('open');
+    }
+
+    function formatImplStatus(status) {
+      const map = {
+        'not_reviewed': 'Not Reviewed',
+        'verified': 'Verified',
+        'applied': 'Applied',
+        'reverted': 'Reverted',
+        'needs_review': 'Needs Review'
+      };
+      return map[status] || status;
+    }
+
+    // ------------------------------------------------------------------
+    // Apply & Revert Workflow (Sections 15, 16, 18, 19)
+    // ------------------------------------------------------------------
+    function confirmApply(r) {
+      showModal(
+        'Verify & Apply Replacement',
+        `Are you sure you want to approve and apply the verified replacement link for <strong>${escHtml(r.page_title || r.step_description)}</strong>?<br><br><strong>Replacement URL:</strong><br><span style="font-size:12px;color:var(--brand);word-break:break-all">${escHtml(r.replacement_url)}</span>`,
+        async () => {
+          showLoading(true);
+          try {
+            const res = await fetch('/api/apply', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ link_id: r.link_id || r.id, reviewer: 'ESG Compliance Reviewer' })
+            });
+            const data = await res.json();
+            showLoading(false);
+            if (data.ok) {
+              r.current_url = r.replacement_url;
+              r.implementation_status = 'applied';
+              showToast('Link replacement applied successfully!');
+              renderTable();
+              openDrawer(activeRecordIndex);
+            } else {
+              alert('Error applying replacement: ' + (data.error || 'Unknown error'));
+            }
+          } catch (err) {
+            showLoading(false);
+            alert('Request failed: ' + err.message);
+          }
+        }
+      );
+    }
+
+    function confirmRevert(r) {
+      showModal(
+        'Revert Replacement Link',
+        `Are you sure you want to revert this change and restore the previous link?<br><br><strong>Original URL will be restored:</strong><br><span style="font-size:12px;color:var(--amber-dark);word-break:break-all">${escHtml(r.original_url)}</span>`,
+        async () => {
+          showLoading(true);
+          try {
+            const res = await fetch('/api/revert', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ link_id: r.link_id || r.id, reviewer: 'ESG Compliance Reviewer' })
+            });
+            const data = await res.json();
+            showLoading(false);
+            if (data.ok) {
+              r.current_url = r.original_url;
+              r.implementation_status = 'reverted';
+              showToast('Link reverted to original source');
+              renderTable();
+              openDrawer(activeRecordIndex);
+            } else {
+              alert('Error reverting link: ' + (data.error || 'Unknown error'));
+            }
+          } catch (err) {
+            showLoading(false);
+            alert('Request failed: ' + err.message);
+          }
+        }
+      );
+    }
+
+    async function loadHistory(linkId) {
+      const container = document.getElementById('history-container');
+      if (!linkId) {
+        container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">No history available</div>';
+        return;
+      }
+      try {
+        const res = await fetch('/api/history?link_id=' + encodeURIComponent(linkId));
+        if (res.ok) {
+          const json = await res.json();
+          const list = json.history || [];
+          if (!list.length) {
+            container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">No implementation events logged yet.</div>';
+            return;
+          }
+          container.innerHTML = `
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Action</th>
+                  <th>Date &amp; Time</th>
+                  <th>Reviewer</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${list.map(h => `
+                  <tr>
+                    <td><strong>${h.event_type.toUpperCase()}</strong></td>
+                    <td>${escHtml((h.date_approved || '').slice(0, 19).replace('T', ' '))}</td>
+                    <td>${escHtml(h.reviewer || 'User')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>`;
+        } else {
+          container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">History not available</div>';
+        }
+      } catch (err) {
+        container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">No history available</div>';
+      }
+    }
+
+    // ------------------------------------------------------------------
+    // Modal & Toast Helpers
+    // ------------------------------------------------------------------
+    const modalBackdrop = document.getElementById('confirm-modal');
+    let modalAction = null;
+
+    function showModal(title, msgHtml, onConfirm) {
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-message').innerHTML = msgHtml;
+      modalAction = onConfirm;
+      modalBackdrop.classList.add('open');
+    }
+
+    document.getElementById('modal-cancel').addEventListener('click', () => {
+      modalBackdrop.classList.remove('open');
+      modalAction = null;
+    });
+
+    document.getElementById('modal-confirm').addEventListener('click', () => {
+      modalBackdrop.classList.remove('open');
+      if (modalAction) modalAction();
+      modalAction = null;
+    });
+
+    function showToast(msg, icon = '✓') {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-icon').textContent = icon;
+      document.getElementById('toast-text').textContent = msg;
+      toast.style.display = 'flex';
+      setTimeout(() => { toast.style.display = 'none'; }, 3500);
+    }
+
+    function escHtml(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ------------------------------------------------------------------
+    // Initialization
+    // ------------------------------------------------------------------
+    loadData();
+
+  })();
+  </script>
+</body>
+</html>

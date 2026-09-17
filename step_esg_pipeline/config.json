@@ -1,0 +1,26 @@
+{
+  "pipeline": {
+    "jurisdiction": "",
+    "topic": "",
+    "step_section": "ESG Legislative Landscape",
+    "limit": 0,
+    "base_url": "https://step.mykajabi.com/free-digital-content"
+  },
+  "schedule": {
+    "enabled": true,
+    "frequency": "weekly",
+    "hour": 0,
+    "minute": 30,
+    "day_of_week": "sun"
+  },
+  "ai": {
+    "provider": "gemini",
+    "anthropic_api_key": "",
+    "openai_api_key": "",
+    "gemini_api_key": "",
+    "openai_model": "gpt-4o-mini",
+    "claude_model": "claude-3-5-haiku-20241022",
+    "gemini_model": "gemini-flash-latest",
+    "confidence_threshold": 0.8
+  }
+}
