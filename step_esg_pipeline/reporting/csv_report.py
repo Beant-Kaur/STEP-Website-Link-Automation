@@ -11,7 +11,7 @@ class CsvReport:
         fieldnames = [
             "link_id", "section", "country", "country_confidence", "instrument_name", "instrument_type",
             "regulatory_topic", "regulated_population", "original_url", "final_url", "http_status",
-            "technical_status", "technical_page_title", "authority", "authority_status",
+            "technical_status", "access_status", "technical_page_title", "authority", "authority_status",
             "regulatory_status", "regulatory_status_reason", "candidate_url", "candidate_title",
             "candidate_authority", "candidate_status", "replacement_relationship",
             "technical_confidence", "authority_confidence", "identity_confidence",
@@ -36,6 +36,7 @@ class CsvReport:
                     "final_url": record.final_url,
                     "http_status": record.http_status or "",
                     "technical_status": record.technical_status,
+                    "access_status": getattr(record, "access_status", ""),
                     "technical_page_title": record.technical_page_title,
                     "authority": record.authority or record.source_organisation,
                     "authority_status": record.authority_status,

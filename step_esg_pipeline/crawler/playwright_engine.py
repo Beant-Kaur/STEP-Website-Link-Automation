@@ -4,6 +4,7 @@ import time
 from typing import Optional, List, Dict, Any, Tuple
 from urllib.parse import urljoin, urlparse
 
+from content.html_parser import TECHNICAL_TITLE_PATTERNS
 from crawler.url_normalizer import UrlNormalizer
 
 logger = logging.getLogger("playwright_engine")
@@ -165,51 +166,93 @@ class PlaywrightEngine:
             page.wait_for_timeout(1500)
 
             # Check if page is facing AWS WAF, Cloudflare, or JS challenge
-            page_content_pre = (page.content() or "").lower()
+            page_content_pre = ""
+            try:
+                page_content_pre = (page.content() or "").lower()
+            except Exception:
+                page_content_pre = ""
+
             is_bot_challenge = (
-                result["http_status"] == 202
+                result["http_status"] in (202, 403)
                 or "awswaf" in page_content_pre
                 or "challenge.js" in page_content_pre
                 or page.query_selector("#challenge-container") is not None
                 or "cf-chl-" in page_content_pre
+                or "just a moment" in (page.title() or "").lower()
             )
             if is_bot_challenge:
-                # Wait up to 7 seconds for token acquisition and page reload
-                for _ in range(7):
+                # Wait up to 10 seconds for token acquisition and page reload
+                for _ in range(10):
                     page.wait_for_timeout(1000)
-                    cur_title = page.title() or ""
-                    cur_body = page.inner_text("body") if page.query_selector("body") else ""
-                    if len(cur_body) > 300 and not page.query_selector("#challenge-container"):
-                        result["http_status"] = 200
-                        result["is_challenge_resolved"] = True
-                        result["final_url"] = page.url
-                        break
+                    try:
+                        cur_title = page.title() or ""
+                        cur_body = page.inner_text("body") if page.query_selector("body") else ""
+                        is_tech_title = any(re.search(pat, cur_title, re.I) for pat in TECHNICAL_TITLE_PATTERNS)
+                        if len(cur_body) > 300 and not page.query_selector("#challenge-container") and not is_tech_title:
+                            result["http_status"] = 200
+                            result["is_challenge_resolved"] = True
+                            result["final_url"] = page.url
+                            break
+                    except Exception:
+                        continue
+
+            # Check if this is a direct PDF URL or PDF extension loaded in browser
+            is_pdf_endpoint = (
+                (response and "application/pdf" in (response.headers.get("content-type", "").lower()))
+                or url.lower().endswith(".pdf")
+                or "/download" in url.lower()
+                or "chrome-extension://" in (page.url or "")
+            )
+            if is_pdf_endpoint and (response is None or response.status == 200):
+                result["http_status"] = 200
+                result["is_access_denied"] = False
+                result["is_challenge_resolved"] = True
+                if url not in result["discovered_pdf_urls"]:
+                    result["discovered_pdf_urls"].append(url)
 
             # Check for cookie/disclaimer popups and dismiss them
             self._dismiss_modals(page)
 
             # Check if page is access denied / challenge
-            body_text = page.inner_text("body") if page.query_selector("body") else ""
-            title = page.title() or ""
+            body_text = ""
+            try:
+                body_text = page.inner_text("body") if page.query_selector("body") else ""
+            except Exception:
+                body_text = ""
+            title = ""
+            try:
+                title = page.title() or ""
+            except Exception:
+                title = ""
             result["title"] = title
             result["text"] = body_text[:6000]
 
             low_text = body_text.lower()
             if any(x in low_text for x in ("access denied", "403 forbidden", "cf-chl-", "verify you are human", "checking your browser")):
                 result["is_access_denied"] = True
-                if "cf-chl-" in low_text or "verify you are human" in low_text or "checking your browser" in low_text:
+                if "cf-chl-" in low_text or "verify you are human" in low_text or "checking your browser" in low_text or "just a moment" in low_text:
                     result["is_challenge_page"] = True
             elif len(body_text) > 300:
+                result["is_access_denied"] = False
+                result["is_challenge_page"] = False
+            elif is_pdf_endpoint and result["http_status"] == 200:
                 result["is_access_denied"] = False
                 result["is_challenge_page"] = False
 
             # Scroll down to trigger lazy loading
             for _ in range(max_scrolls):
-                page.evaluate("window.scrollBy(0, 600)")
-                page.wait_for_timeout(400)
+                try:
+                    page.evaluate("window.scrollBy(0, 600)")
+                    page.wait_for_timeout(400)
+                except Exception:
+                    pass
 
-            # Inspect HTML
-            html = page.content()
+            # Inspect HTML safely
+            html = ""
+            try:
+                html = page.content()
+            except Exception:
+                html = ""
             result["html"] = html
 
             # 1. Detect PDF Viewers

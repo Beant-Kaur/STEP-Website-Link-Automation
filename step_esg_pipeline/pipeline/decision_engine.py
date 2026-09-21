@@ -62,8 +62,8 @@ class DecisionEngine:
         )
         is_blocked = (
             http_status in (403, 202)
-            or tech_status in ("ACCESS_BLOCKED", "HTTP_403", "WAF_CHALLENGE")
-            or access_status in ("ACCESS_DENIED", "ACCESS_CHALLENGE", "CLOUDFLARE_CHALLENGE", "BOT_PROTECTION")
+            or tech_status in ("ACCESS_BLOCKED", "HTTP_403", "WAF_CHALLENGE", "BOT_PROTECTION", "ACCESS_RESTRICTED")
+            or access_status in ("ACCESS_DENIED", "ACCESS_CHALLENGE", "CLOUDFLARE_CHALLENGE", "BOT_PROTECTION", "RATE_LIMITED")
             or classification in ("ACCESS_RESTRICTED", "ACCESS_DENIED")
         )
         is_outdated = (

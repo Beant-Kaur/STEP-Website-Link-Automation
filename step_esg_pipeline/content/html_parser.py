@@ -18,6 +18,9 @@ TECHNICAL_TITLE_PATTERNS = [
     r"\bakamai\b",
     r"security\s*check",
     r"verify\s*you\s*are\s*human",
+    r"\bjavascript\s*(?:is\s*)?(?:disabled|required)\b",
+    r"\brate\s*(?:threshold\s*)?exceeded\b",
+    r"\battention\s*required\b",
 ]
 
 

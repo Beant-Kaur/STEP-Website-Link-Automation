@@ -24,7 +24,7 @@ class UrlChecker:
         self.backoff_factor = backoff_factor
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "User-Agent": "STEP-ESG-Auditor/1.0 (compliance@step-monitoring.org; Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36)",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/pdf,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
             "Sec-Ch-Ua": '"Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"',
@@ -59,12 +59,16 @@ class UrlChecker:
             return "BROKEN", f"HTTP {status_code} Resource Not Found / Gone."
 
         if status_code in (403, 202):
-            if cf_ray or "cloudflare" in server_header or "cf-chl-" in body_lower or "cloudflare" in body_lower:
+            if "just a moment" in title_lower or cf_ray or "cloudflare" in server_header or "cf-chl-" in body_lower or "cloudflare" in body_lower:
                 return "CLOUDFLARE_CHALLENGE", "Cloudflare anti-bot security challenge detected."
+            if "awswaf" in body_lower or status_code == 202 or "aws" in server_header:
+                return "AWS_WAF_CHALLENGE", "AWS WAF anti-bot challenge detected (HTTP 202)."
             if any(k in body_lower for k in ("turnstile", "recaptcha", "hcaptcha", "captcha", "challenge-running", "security check", "verify you are human")):
                 return "BOT_PROTECTION", "Automated bot verification / CAPTCHA challenge detected."
-            if any(k in body_lower for k in ("enable javascript", "javascript is required", "js challenge")):
+            if any(k in body_lower for k in ("enable javascript", "javascript is required", "js challenge", "javascript is disabled")):
                 return "JS_CHALLENGE", "Client-side JavaScript execution challenge required."
+            if any(k in body_lower for k in ("rate threshold exceeded", "rate limit")):
+                return "RATE_LIMITED", "HTTP 403 Rate limit or access policy threshold exceeded."
             if any(k in body_lower for k in ("login", "sign in", "authentication required", "unauthorized", "subscriber")):
                 return "LOGIN_REQUIRED", "Access denied: authentication, login, or subscription required."
             if any(k in body_lower for k in ("geographic", "geo-block", "not available in your country", "region restricted")):
@@ -172,7 +176,12 @@ class UrlChecker:
                 result["is_soft_404"] = True
                 result["technical_status"] = CaseInsensitiveStatus("BROKEN")
             elif response.status_code in (202, 403):
-                result["technical_status"] = CaseInsensitiveStatus("ACCESS_RESTRICTED")
+                if access_status in ("CLOUDFLARE_CHALLENGE", "AWS_WAF_CHALLENGE", "BOT_PROTECTION", "JS_CHALLENGE"):
+                    result["technical_status"] = CaseInsensitiveStatus("BOT_PROTECTION")
+                elif access_status == "RATE_LIMITED":
+                    result["technical_status"] = CaseInsensitiveStatus("RATE_LIMITED")
+                else:
+                    result["technical_status"] = CaseInsensitiveStatus("ACCESS_RESTRICTED")
             elif response.status_code in (404, 410):
                 result["technical_status"] = CaseInsensitiveStatus("BROKEN")
             elif response.status_code in (500, 502, 503, 504):

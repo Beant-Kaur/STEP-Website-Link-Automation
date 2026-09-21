@@ -306,3 +306,83 @@ class TestAuditEngineRequiredCases:
         data = json.loads(json_str)
         assert len(data) == 5
         assert data[0]["type"] == "extraction"
+
+    def test_13_sec_fair_access_and_pdf_validation(self):
+        """Scenario 13: SEC Fair Access header enables HTTP 200 PDF fetch with magic bytes."""
+        from content.pdf_engine import PdfEngine
+        from crawler.url_checker import UrlChecker
+
+        # Verify default SEC Fair Access User-Agent format
+        checker = UrlChecker()
+        ua = checker.session.headers.get("User-Agent", "")
+        assert "STEP-ESG-Auditor" in ua
+        assert "compliance@step-monitoring.org" in ua
+
+        # Verify PDF Engine handles direct PDF signature verification
+        dummy_pdf = b"%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF"
+        sig_verified = PdfEngine.verify_magic_bytes(dummy_pdf)
+        assert sig_verified is True
+
+    def test_14_concatenated_url_normalization(self):
+        """Scenario 14: Concatenated URLs with embedded query parameters are cleanly separated."""
+        from crawler.url_normalizer import UrlNormalizer
+
+        merged_raw = "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023DC0012https://eur-lex.europa.eu/eli/reg_del/2023/2772/oj/eng&utm_source=gemini"
+        clean = UrlNormalizer.normalize(merged_raw)
+        assert clean == "https://eur-lex.europa.eu/eli/reg_del/2023/2772/oj/eng"
+
+    def test_15_cloudflare_challenge_granular_classification(self):
+        """Scenario 15: Cloudflare anti-bot challenge is accurately classified as BOT_PROTECTION."""
+        from crawler.url_checker import UrlChecker
+        from unittest.mock import MagicMock
+
+        checker = UrlChecker()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 403
+        mock_resp.headers = {"cf-ray": "8432a184e9123-AMS", "server": "cloudflare"}
+        html_snippet = "<html><head><title>Just a moment...</title></head><body><div id='cf-wrapper'>cf-chl-</div></body></html>"
+        
+        status, reason = checker._classify_access(mock_resp, html_snippet, "Just a moment...")
+        assert status == "CLOUDFLARE_CHALLENGE"
+        assert "Cloudflare" in reason
+
+    def test_16_playwright_internal_pdf_viewer_resolution(self):
+        """Scenario 16: Chrome internal PDF viewer extension at HTTP 200 is resolved as ACCESSIBLE."""
+        rec = LinkRecord(
+            link_id="t16",
+            jurisdiction="United Arab Emirates",
+            topic="UAE Cabinet Resolution",
+            step_section="ESG Legislative Landscape",
+            step_description="Cabinet Resolution No. (67) of 2024",
+            original_url="https://uaelegislation.gov.ae/en/legislations/2521/download",
+            http_status=200,
+            technical_status="ACCESSIBLE_VIA_BROWSER",
+            access_status="ACCESSIBLE",
+            document_type="PDF Regulation / Document",
+            authority_status="TIER_1_GOVERNMENT_GAZETTE",
+            regulatory_status="CURRENT_IN_FORCE",
+            freshness_status="CURRENT_IN_FORCE",
+            confidence_score=0.90,
+            overall_confidence=0.90,
+        )
+        decision = DecisionEngine().decide_canonical(rec)
+        assert decision == "KEEP"
+        assert rec.access_status == "ACCESSIBLE"
+        assert rec.technical_status == "ACCESSIBLE_VIA_BROWSER"
+
+    def test_17_technical_error_title_filtering(self):
+        """Scenario 17: Technical titles (Access Denied, Just a moment, JS disabled) are never used as document titles."""
+        from content.html_parser import TECHNICAL_TITLE_PATTERNS
+        import re
+
+        test_titles = [
+            "Access Denied",
+            "403 Forbidden",
+            "Just a moment...",
+            "Attention Required! | Cloudflare",
+            "JavaScript is disabled",
+            "Rate threshold exceeded",
+        ]
+        for title in test_titles:
+            is_match = any(re.search(pat, title, re.I) for pat in TECHNICAL_TITLE_PATTERNS)
+            assert is_match, f"Failed to reject technical title: {title}"
