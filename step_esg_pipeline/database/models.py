@@ -1,8 +1,12 @@
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 import json
+
+
+def _utc_now():
+    return datetime.now(timezone.utc)
 
 
 @dataclass
@@ -27,6 +31,8 @@ class LinkRecord:
     effective_date: str = ""
     version: str = ""
     content_status: str = ""
+    last_amended_date: str = ""
+    intent: str = ""
     regulatory_status: str = ""
     freshness_status: str = ""
     classification: str = ""
@@ -40,12 +46,12 @@ class LinkRecord:
     recommended_action: str = ""
     human_review_required: bool = False
     human_review_status: str = "pending"
-    last_checked_at: datetime = field(default_factory=datetime.utcnow)
-    next_check_at: datetime = field(default_factory=datetime.utcnow)
+    last_checked_at: datetime = field(default_factory=_utc_now)
+    next_check_at: datetime = field(default_factory=_utc_now)
     content_hash: str = ""
     previous_content_hash: str = ""
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=_utc_now)
+    updated_at: datetime = field(default_factory=_utc_now)
     # Section 22 Multi-Dimensional Fields
     authority_status: str = ""
     final_status: str = ""
@@ -82,6 +88,37 @@ class LinkRecord:
     final_confidence: float = 0.0
     run_id: str = ""
     implementation_status: str = "not_reviewed"
+    # Discovery & PDF Engine Fields
+    pdf_url: str = ""
+    candidate_pdf_url: str = ""
+    pdf_validation_status: str = ""
+    pdf_magic_signature_verified: bool = False
+    discovered_trail: str = "[]"
+    extracted_dates_detail: str = "[]"
+    document_references: str = "[]"
+    version_chain: str = "[]"
+    official_search_performed: bool = False
+    # Section 3 & 16 Redesign Fields
+    section: str = "ESG Legislative Landscape"
+    country: str = ""
+    country_confidence: float = 1.0
+    authority: str = ""
+    instrument_name: str = ""
+    instrument_type: str = ""
+    regulatory_topic: str = ""
+    regulated_population: str = ""
+    technical_page_title: str = ""
+    candidate_authority: str = ""
+    candidate_status: str = "NONE_FOUND"
+    replacement_relationship: str = ""
+    technical_confidence: float = 0.0
+    authority_confidence: float = 0.0
+    identity_confidence: float = 0.0
+    currentness_confidence: float = 0.0
+    overall_confidence: float = 0.0
+    final_decision: str = ""
+    why_summary: str = ""
+    evidence_json: str = "[]"
 
 
 class DatabaseRepository:
@@ -186,6 +223,37 @@ class DatabaseRepository:
             ("final_confidence", "REAL DEFAULT 0.0"),
             ("run_id", "TEXT"),
             ("implementation_status", "TEXT DEFAULT 'not_reviewed'"),
+            # Discovery & PDF columns
+            ("pdf_url", "TEXT"),
+            ("candidate_pdf_url", "TEXT"),
+            ("pdf_validation_status", "TEXT"),
+            ("pdf_magic_signature_verified", "INTEGER DEFAULT 0"),
+            ("discovered_trail", "TEXT"),
+            ("extracted_dates_detail", "TEXT"),
+            ("document_references", "TEXT"),
+            ("version_chain", "TEXT"),
+            ("official_search_performed", "INTEGER DEFAULT 0"),
+            # Section 3 & 16 Redesign columns
+            ("section", "TEXT DEFAULT 'ESG Legislative Landscape'"),
+            ("country", "TEXT"),
+            ("country_confidence", "REAL DEFAULT 1.0"),
+            ("authority", "TEXT"),
+            ("instrument_name", "TEXT"),
+            ("instrument_type", "TEXT"),
+            ("regulatory_topic", "TEXT"),
+            ("regulated_population", "TEXT"),
+            ("technical_page_title", "TEXT"),
+            ("candidate_authority", "TEXT"),
+            ("candidate_status", "TEXT DEFAULT 'NONE_FOUND'"),
+            ("replacement_relationship", "TEXT"),
+            ("technical_confidence", "REAL DEFAULT 0.0"),
+            ("authority_confidence", "REAL DEFAULT 0.0"),
+            ("identity_confidence", "REAL DEFAULT 0.0"),
+            ("currentness_confidence", "REAL DEFAULT 0.0"),
+            ("overall_confidence", "REAL DEFAULT 0.0"),
+            ("final_decision", "TEXT"),
+            ("why_summary", "TEXT"),
+            ("evidence_json", "TEXT DEFAULT '[]'"),
         ]
         for col_name, col_type in new_cols:
             try:
@@ -268,8 +336,14 @@ class DatabaseRepository:
                 authenticity_reason, comparability, comparability_confidence,
                 regulatory_status_reason, replacement_required, replacement_authority,
                 replacement_comparability, replacement_confidence, recheck_performed,
-                recheck_reason, initial_confidence, final_confidence, run_id, implementation_status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                recheck_reason, initial_confidence, final_confidence, run_id, implementation_status,
+                pdf_url, candidate_pdf_url, pdf_validation_status, pdf_magic_signature_verified,
+                discovered_trail, extracted_dates_detail, document_references, version_chain, official_search_performed,
+                section, country, country_confidence, authority, instrument_name, instrument_type, regulatory_topic,
+                regulated_population, technical_page_title, candidate_authority, candidate_status, replacement_relationship,
+                technical_confidence, authority_confidence, identity_confidence, currentness_confidence, overall_confidence,
+                final_decision, why_summary, evidence_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             record.link_id,
             record.jurisdiction,
@@ -343,6 +417,35 @@ class DatabaseRepository:
             record.final_confidence or record.confidence_score,
             record.run_id,
             record.implementation_status or "not_reviewed",
+            record.pdf_url,
+            record.candidate_pdf_url,
+            record.pdf_validation_status,
+            1 if record.pdf_magic_signature_verified else 0,
+            record.discovered_trail if isinstance(record.discovered_trail, str) else json.dumps(record.discovered_trail),
+            record.extracted_dates_detail if isinstance(record.extracted_dates_detail, str) else json.dumps(record.extracted_dates_detail),
+            record.document_references if isinstance(record.document_references, str) else json.dumps(record.document_references),
+            record.version_chain if isinstance(record.version_chain, str) else json.dumps(record.version_chain),
+            1 if record.official_search_performed else 0,
+            record.section,
+            record.country or record.jurisdiction,
+            record.country_confidence,
+            record.authority or record.source_organisation,
+            record.instrument_name or record.step_description,
+            record.instrument_type,
+            record.regulatory_topic or record.topic,
+            record.regulated_population,
+            record.technical_page_title,
+            record.candidate_authority or record.replacement_authority,
+            record.candidate_status,
+            record.replacement_relationship or record.replacement_comparability,
+            record.technical_confidence,
+            record.authority_confidence,
+            record.identity_confidence,
+            record.currentness_confidence,
+            record.overall_confidence or record.confidence_score,
+            record.final_decision or record.recommended_action,
+            record.why_summary,
+            record.evidence_json,
         ))
         conn.commit()
         conn.close()
@@ -457,6 +560,36 @@ class DatabaseRepository:
             final_confidence=float(row["final_confidence"] or row["confidence_score"] or 0.0) if "final_confidence" in keys else float(row["confidence_score"] or 0.0),
             run_id=(row["run_id"] or "") if "run_id" in keys else "",
             implementation_status=(row["implementation_status"] or "not_reviewed") if "implementation_status" in keys else "not_reviewed",
+            pdf_url=(row["pdf_url"] or "") if "pdf_url" in keys else "",
+            candidate_pdf_url=(row["candidate_pdf_url"] or "") if "candidate_pdf_url" in keys else "",
+            pdf_validation_status=(row["pdf_validation_status"] or "") if "pdf_validation_status" in keys else "",
+            pdf_magic_signature_verified=bool(row["pdf_magic_signature_verified"]) if "pdf_magic_signature_verified" in keys else False,
+            discovered_trail=(row["discovered_trail"] or "[]") if "discovered_trail" in keys else "[]",
+            extracted_dates_detail=(row["extracted_dates_detail"] or "[]") if "extracted_dates_detail" in keys else "[]",
+            document_references=(row["document_references"] or "[]") if "document_references" in keys else "[]",
+            version_chain=(row["version_chain"] or "[]") if "version_chain" in keys else "[]",
+            official_search_performed=bool(row["official_search_performed"]) if "official_search_performed" in keys else False,
+            # Section 3 & 16 redesign fields
+            section=(row["section"] or "ESG Legislative Landscape") if "section" in keys else "ESG Legislative Landscape",
+            country=(row["country"] or row["jurisdiction"] or "") if "country" in keys else (row["jurisdiction"] or ""),
+            country_confidence=float(row["country_confidence"] or 1.0) if "country_confidence" in keys else 1.0,
+            authority=(row["authority"] or row["source_organisation"] or "") if "authority" in keys else (row["source_organisation"] or ""),
+            instrument_name=(row["instrument_name"] or row["step_description"] or "") if "instrument_name" in keys else (row["step_description"] or ""),
+            instrument_type=(row["instrument_type"] or "") if "instrument_type" in keys else "",
+            regulatory_topic=(row["regulatory_topic"] or row["topic"] or "") if "regulatory_topic" in keys else (row["topic"] or ""),
+            regulated_population=(row["regulated_population"] or "") if "regulated_population" in keys else "",
+            technical_page_title=(row["technical_page_title"] or "") if "technical_page_title" in keys else "",
+            candidate_authority=(row["candidate_authority"] or row["replacement_authority"] or "") if "candidate_authority" in keys else "",
+            candidate_status=(row["candidate_status"] or "NONE_FOUND") if "candidate_status" in keys else "NONE_FOUND",
+            replacement_relationship=(row["replacement_relationship"] or row["replacement_comparability"] or "") if "replacement_relationship" in keys else "",
+            technical_confidence=float(row["technical_confidence"] or 0.0) if "technical_confidence" in keys else 0.0,
+            authority_confidence=float(row["authority_confidence"] or 0.0) if "authority_confidence" in keys else 0.0,
+            identity_confidence=float(row["identity_confidence"] or 0.0) if "identity_confidence" in keys else 0.0,
+            currentness_confidence=float(row["currentness_confidence"] or 0.0) if "currentness_confidence" in keys else 0.0,
+            overall_confidence=float(row["overall_confidence"] or row["confidence_score"] or 0.0) if "overall_confidence" in keys else float(row["confidence_score"] or 0.0),
+            final_decision=(row["final_decision"] or row["recommended_action"] or "") if "final_decision" in keys else (row["recommended_action"] or ""),
+            why_summary=(row["why_summary"] or "") if "why_summary" in keys else "",
+            evidence_json=(row["evidence_json"] or "[]") if "evidence_json" in keys else "[]",
         )
 
     def log_pipeline_run(self, run_id: str, start_time: datetime, end_time: datetime,

@@ -1,0 +1,32 @@
+country: Kingdom of Saudi Arabia
+jurisdiction_code: SA
+authorities:
+  - name: Capital Market Authority (CMA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - cma.org.sa
+  - name: Saudi Exchange (Tadawul)
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - saudiexchange.sa
+      - tadawul.com.sa
+  - name: Saudi Central Bank (SAMA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - sama.gov.sa
+topics:
+  - ESG disclosure guidelines
+  - sustainability reporting
+  - corporate governance
+  - green finance
+instrument_types:
+  - Guidelines
+  - Regulations
+  - Circular
+  - Standards
+lifecycle_terms:
+  - superseded
+  - replaced
+  - amended
+  - updated
+  - in force

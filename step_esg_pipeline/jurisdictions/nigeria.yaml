@@ -1,0 +1,42 @@
+country: Nigeria
+jurisdiction_code: NG
+authorities:
+  - name: National Environmental Standards and Regulations Enforcement Agency (NESREA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - nesrea.gov.ng
+  - name: Corporate Affairs Commission (CAC)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - cac.gov.ng
+  - name: Central Bank of Nigeria (CBN)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - cbn.gov.ng
+  - name: Securities and Exchange Commission Nigeria (SEC NG)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - sec.gov.ng
+  - name: Nigerian Exchange Group (NGX)
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - ngxgroup.com
+topics:
+  - NESREA Act
+  - Environmental Impact Assessment Act (EIA)
+  - Companies and Allied Matters Act (CAMA 2020)
+  - NESREA Policies & Guidelines
+  - Nigeria NDC
+  - Nigerian Sustainable Banking Principles (NSBP)
+  - Green Bond Issuance Rules
+instrument_types:
+  - Act of the National Assembly
+  - Guidelines
+  - Circular
+  - Rules
+lifecycle_terms:
+  - amended
+  - repealed
+  - superseded
+  - in force
+  - gazetted

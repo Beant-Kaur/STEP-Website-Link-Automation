@@ -1,0 +1,29 @@
+country: Kuwait
+jurisdiction_code: KW
+authorities:
+  - name: Capital Markets Authority (CMA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - cma.gov.kw
+  - name: Boursa Kuwait
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - boursakuwait.com.kw
+  - name: Central Bank of Kuwait
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - cbk.gov.kw
+topics:
+  - ESG reporting guide
+  - sustainability disclosure
+  - corporate governance
+instrument_types:
+  - Guide
+  - Executive Bylaws
+  - Resolution
+  - Circular
+lifecycle_terms:
+  - superseded
+  - replaced
+  - amended
+  - in force

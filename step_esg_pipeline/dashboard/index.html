@@ -489,6 +489,10 @@
     .badge-update .badge-dot { background: var(--amber-dark); }
     .badge-review { background: var(--purple-bg); color: var(--purple); }
     .badge-review .badge-dot { background: var(--purple); }
+    .badge-danger { background: var(--red-bg); color: var(--red); }
+    .badge-danger .badge-dot { background: var(--red); }
+    .badge-pdf { background: #E0F2FE; color: #0284C7; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
+    .badge-pdf.verified { background: #DCFCE7; color: #16A34A; }
 
     /* Issue Tag */
     .issue-tag {
@@ -1210,10 +1214,37 @@
       const tech = (r.technical_status || '').toUpperCase();
       const code = r.http_status;
       
-      if (fs === 'VALID_AND_CURRENT' && tech === 'ACCESSIBLE' && code === 200) {
-        return { key: 'keep', label: 'Keep', badgeClass: 'badge-keep' };
+      if (fs === 'VALID PDF' || (fs === 'VALID_AND_CURRENT' && (r.pdf_validation_status === 'VALID_PDF' || r.pdf_url))) {
+        return { key: 'keep', label: 'Valid PDF', badgeClass: 'badge-keep' };
       }
-      if (['BROKEN', 'BROKEN_SOFT_404', 'WRONG_DESTINATION', 'WORKING_BUT_OUTDATED', 'REPLACE_WITH_OFFICIAL', 'WORKING_BUT_NON_OFFICIAL'].includes(fs) || code === 404) {
+      if (fs === 'VALID' || (fs === 'VALID_AND_CURRENT' && tech === 'ACCESSIBLE' && code === 200)) {
+        return { key: 'keep', label: 'Valid', badgeClass: 'badge-keep' };
+      }
+      if (fs === 'UPDATED PDF FOUND') {
+        return { key: 'update', label: 'Updated PDF Found', badgeClass: 'badge-update' };
+      }
+      if (fs === 'OFFICIAL SOURCE VERIFIED') {
+        return { key: 'update', label: 'Official Source Verified', badgeClass: 'badge-update' };
+      }
+      if (fs === 'REPLACEMENT VERIFIED') {
+        return { key: 'update', label: 'Replacement Verified', badgeClass: 'badge-update' };
+      }
+      if (fs === 'REPLACEMENT FOUND') {
+        return { key: 'update', label: 'Replacement Found', badgeClass: 'badge-update' };
+      }
+      if (fs === 'PAGE NOT FOUND' || fs === 'BROKEN' || fs === 'BROKEN_SOFT_404' || code === 404) {
+        return { key: 'update', label: 'Page Not Found', badgeClass: 'badge-danger' };
+      }
+      if (fs === 'PDF NOT FOUND' || fs === 'PDF INVALID') {
+        return { key: 'update', label: 'PDF Not Found', badgeClass: 'badge-danger' };
+      }
+      if (fs === 'ACCESS BLOCKED' || code === 403 || code === 202) {
+        return { key: 'review', label: 'Access Blocked', badgeClass: 'badge-review' };
+      }
+      if (fs === 'REDIRECTED' || r.redirect_status === 'redirected') {
+        return { key: 'update', label: 'Redirected', badgeClass: 'badge-update' };
+      }
+      if (['WRONG_DESTINATION', 'WORKING_BUT_OUTDATED', 'REPLACE_WITH_OFFICIAL', 'WORKING_BUT_NON_OFFICIAL'].includes(fs)) {
         return { key: 'update', label: 'Needs Update', badgeClass: 'badge-update' };
       }
       return { key: 'review', label: 'Needs Review', badgeClass: 'badge-review' };
@@ -1551,7 +1582,10 @@
               <span class="country-pill">${escHtml(r.jurisdiction || 'General')}</span>
             </td>
             <td class="col-resource">
-              <span class="resource-name" title="${escHtml(title)}">${escHtml(title)}</span>
+              <span class="resource-name" title="${escHtml(title)}">
+                ${escHtml(title)}
+                ${r.pdf_url || r.pdf_validation_status === 'VALID_PDF' ? `<span class="badge-pdf ${r.pdf_magic_signature_verified ? 'verified' : ''}">📄 PDF ${r.pdf_magic_signature_verified ? '✓%PDF-' : ''}</span>` : ''}
+              </span>
               <span class="resource-url">
                 <a href="${escHtml(currentUrl)}" target="_blank" rel="noopener">${escHtml(currentUrl)}</a>
               </span>
@@ -1563,6 +1597,7 @@
             </td>
             <td class="col-freshness">
               <span style="font-weight:500">${freshness}</span>
+              ${r.publication_date ? `<div style="font-size:11px;color:var(--text-muted)">📅 ${escHtml(r.publication_date)}</div>` : ''}
             </td>
             <td class="col-regstatus">
               <span style="font-weight:500">${regStatus}</span>
@@ -1575,7 +1610,11 @@
                 <div>${recommendation}</div>
                 ${r.replacement_url && r.replacement_verified ? `
                   <a class="rec-link" href="${escHtml(r.replacement_url)}" target="_blank" rel="noopener">
-                    ✓ Recommended Link
+                    ✓ Recommended Source
+                  </a>` : ''}
+                ${r.candidate_pdf_url && r.candidate_pdf_url !== r.replacement_url ? `
+                  <a class="rec-link" href="${escHtml(r.candidate_pdf_url)}" target="_blank" rel="noopener" style="color:var(--brand);margin-top:2px">
+                    📄 Official PDF
                   </a>` : ''}
               </div>
             </td>
@@ -1737,6 +1776,63 @@
             </div>` : ''}
         </section>
 
+        <!-- SECTION: WHY WAS THIS MARKED {final_decision}? (AUDIT EVIDENCE TRAIL) -->
+        <section class="d-section" style="background:var(--surface-2);border-left:4px solid var(--brand);padding:14px;border-radius:6px">
+          <div class="d-section-title" style="color:var(--brand);margin-bottom:8px">⚖️ Audit Evidence &amp; Decision Rationale</div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:6px">
+            Final Decision: <span class="badge ${status.badgeClass}">${escHtml(r.final_decision || r.recommended_action || status.label)}</span>
+            <span style="font-size:11px;color:var(--text-muted);margin-left:8px">Overall Confidence: ${r.overall_confidence ? Math.round(r.overall_confidence * 100) + '%' : (r.confidence_score ? Math.round(r.confidence_score * 100) + '%' : 'N/A')}</span>
+          </div>
+          ${r.why_summary ? `<div style="font-size:12px;color:var(--text-secondary);line-height:1.5;white-space:pre-line;margin-bottom:10px">${escHtml(r.why_summary)}</div>` : ''}
+
+          <!-- Confidence Sub-scores Grid -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(110px, 1fr));gap:6px;margin-bottom:10px">
+            <div style="background:var(--surface);padding:6px 8px;border-radius:4px;border:1px solid var(--border)">
+              <div style="font-size:10px;color:var(--text-muted)">Technical</div>
+              <div style="font-weight:600;font-size:12px">${Math.round((r.technical_confidence || 0) * 100)}%</div>
+            </div>
+            <div style="background:var(--surface);padding:6px 8px;border-radius:4px;border:1px solid var(--border)">
+              <div style="font-size:10px;color:var(--text-muted)">Authority</div>
+              <div style="font-weight:600;font-size:12px">${Math.round((r.authority_confidence || 0) * 100)}%</div>
+            </div>
+            <div style="background:var(--surface);padding:6px 8px;border-radius:4px;border:1px solid var(--border)">
+              <div style="font-size:10px;color:var(--text-muted)">Identity</div>
+              <div style="font-weight:600;font-size:12px">${Math.round((r.identity_confidence || 0) * 100)}%</div>
+            </div>
+            <div style="background:var(--surface);padding:6px 8px;border-radius:4px;border:1px solid var(--border)">
+              <div style="font-size:10px;color:var(--text-muted)">Currentness</div>
+              <div style="font-weight:600;font-size:12px">${Math.round((r.currentness_confidence || 0) * 100)}%</div>
+            </div>
+            <div style="background:var(--surface);padding:6px 8px;border-radius:4px;border:1px solid var(--border)">
+              <div style="font-size:10px;color:var(--text-muted)">Replacement</div>
+              <div style="font-weight:600;font-size:12px">${Math.round((r.replacement_confidence || 0) * 100)}%</div>
+            </div>
+          </div>
+
+          <!-- Structured Evidence Items -->
+          ${(() => {
+            let evItems = [];
+            try { evItems = typeof r.evidence_json === 'string' ? JSON.parse(r.evidence_json) : (r.evidence_json || []); } catch(e) {}
+            if (!evItems.length && r.evidence) {
+              try {
+                const arr = typeof r.evidence === 'string' ? JSON.parse(r.evidence) : r.evidence;
+                evItems = arr.map(x => ({ type: 'General', finding: String(x) }));
+              } catch(e) {}
+            }
+            if (!evItems.length) return '';
+            return `
+              <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px">Evidence Trail:</div>
+              <div style="display:flex;flex-direction:column;gap:5px">
+                ${evItems.map(it => `
+                  <div style="display:flex;gap:6px;font-size:11px;align-items:baseline">
+                    <span class="badge" style="background:var(--surface);color:var(--brand);font-size:9px;padding:2px 6px">${escHtml((it.type || 'EVIDENCE').toUpperCase())}</span>
+                    <span style="color:var(--text-secondary)">${escHtml(it.finding || it.detail || '')}</span>
+                  </div>
+                `).join('')}
+              </div>`;
+          })()}
+        </section>
+
         <!-- SECTION C: WHAT SHOULD I DO? -->
         <section class="d-section">
           <div class="d-section-title">💡 Action &amp; Recommended Replacement</div>
@@ -1752,6 +1848,13 @@
                   ${escHtml(r.replacement_url)} ↗
                 </a>
               </div>
+              ${r.candidate_pdf_url && r.candidate_pdf_url !== r.replacement_url ? `
+                <div style="margin-top:6px;font-size:12px">
+                  <strong>Direct Official PDF:</strong> 
+                  <a href="${escHtml(r.candidate_pdf_url)}" target="_blank" rel="noopener" style="color:var(--brand)">
+                    ${escHtml(r.candidate_pdf_url)} ↗
+                  </a>
+                </div>` : ''}
               ${r.replacement_reason ? `<div class="replacement-box-reason">${escHtml(r.replacement_reason)}</div>` : ''}
             </div>` : `
             <div style="font-size:12px;color:var(--text-muted);margin-top:8px">
@@ -1759,7 +1862,78 @@
             </div>`}
         </section>
 
-        <!-- SECTION D: VERIFICATION & IMPLEMENTATION CONTROLS -->
+        <!-- SECTION D: DISCOVERED SOURCE TRAIL -->
+        ${(() => {
+          let trail = [];
+          try { trail = typeof r.discovered_trail === 'string' ? JSON.parse(r.discovered_trail) : (r.discovered_trail || []); } catch(e) {}
+          if (!trail || !trail.length) return '';
+          return `
+          <section class="d-section">
+            <div class="d-section-title">🗺️ Discovered Source Trail</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+              ${trail.map((t, idx) => `
+                <div style="display:flex;align-items:flex-start;gap:8px">
+                  <span class="badge" style="background:var(--surface-2);color:var(--brand);font-size:10px">${idx + 1}. ${escHtml(t.stage || 'STEP')}</span>
+                  <span style="word-break:break-all;color:var(--text-primary)">${escHtml(t.url || '')}</span>
+                </div>
+              `).join('')}
+            </div>
+          </section>`;
+        })()}
+
+        <!-- SECTION E: UNIVERSAL DATES & REGULATORY CONTEXT -->
+        ${(() => {
+          let dList = [];
+          try { dList = typeof r.extracted_dates_detail === 'string' ? JSON.parse(r.extracted_dates_detail) : (r.extracted_dates_detail || []); } catch(e) {}
+          if (!dList || !dList.length) return '';
+          return `
+          <section class="d-section">
+            <div class="d-section-title">📅 Extracted Dates &amp; Contexts</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:8px">
+              ${dList.slice(0, 6).map(d => `
+                <div style="background:var(--surface-2);padding:8px 10px;border-radius:6px;border:1px solid var(--border)">
+                  <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase">${escHtml(d.context || 'DATE')}</div>
+                  <div style="font-weight:600;font-size:13px;color:var(--text-primary)">${escHtml(d.original_date || '')}</div>
+                  <div style="font-size:11px;color:var(--brand)">ISO: ${escHtml(d.normalized_date || 'N/A')}</div>
+                </div>
+              `).join('')}
+            </div>
+          </section>`;
+        })()}
+
+        <!-- SECTION F: CROSS-REFERENCES & VERSION CHAIN -->
+        ${(() => {
+          let refs = [];
+          try { refs = typeof r.document_references === 'string' ? JSON.parse(r.document_references) : (r.document_references || []); } catch(e) {}
+          let chain = [];
+          try { chain = typeof r.version_chain === 'string' ? JSON.parse(r.version_chain) : (r.version_chain || []); } catch(e) {}
+          if (!refs.length && !chain.length) return '';
+          return `
+          <section class="d-section">
+            <div class="d-section-title">📑 Document References &amp; Version Chain</div>
+            ${refs.length ? `
+              <div style="margin-bottom:10px">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px">References in Text:</div>
+                <ul style="padding-left:16px;font-size:12px;color:var(--text-secondary)">
+                  ${refs.map(rf => `<li>${escHtml(rf)}</li>`).join('')}
+                </ul>
+              </div>` : ''}
+            ${chain.length ? `
+              <div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px">Version Relationship Chain:</div>
+                <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+                  ${chain.map(c => `
+                    <div style="display:flex;align-items:center;gap:6px">
+                      <span class="badge" style="background:var(--brand-light);color:var(--brand);font-size:10px">${escHtml(c.stage || '')}</span>
+                      <span>${escHtml(c.document || '')}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>` : ''}
+          </section>`;
+        })()}
+
+        <!-- SECTION G: VERIFICATION & IMPLEMENTATION CONTROLS -->
         <section class="d-section">
           <div class="d-section-title">⚙️ Verification &amp; STEP Implementation</div>
           <div style="font-size:13px;color:var(--text-secondary)">
@@ -1777,7 +1951,7 @@
           </div>
         </section>
 
-        <!-- SECTION E: TECHNICAL DETAILS (Collapsible) -->
+        <!-- SECTION H: TECHNICAL DETAILS (Collapsible) -->
         <details class="tech-details">
           <summary>🔍 Technical Details (IT &amp; Compliance Audit)</summary>
           <div class="tech-details-content">
@@ -1785,7 +1959,8 @@
             <p><strong>Technical Status:</strong> ${escHtml(r.technical_status || 'N/A')}</p>
             <p><strong>Final URL:</strong> ${escHtml(r.final_url || r.original_url || 'N/A')}</p>
             <p><strong>Domain:</strong> ${escHtml(r.source_domain || 'N/A')}</p>
-            <p><strong>Content Hash:</strong> ${escHtml(r.content_hash || 'N/A')}</p>
+            <p><strong>PDF Status:</strong> ${escHtml(r.pdf_validation_status || 'None')} (Magic %PDF-: ${r.pdf_magic_signature_verified ? 'Yes' : 'No'})</p>
+            <p><strong>Confidence Score:</strong> ${r.confidence_score || '0.0'}</p>
             ${Array.isArray(r.evidence) && r.evidence.length ? `
               <div style="margin-top:8px"><strong>Evidence Collected:</strong>
                 <ul style="padding-left:16px;margin-top:4px">

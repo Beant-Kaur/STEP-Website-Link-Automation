@@ -1,0 +1,48 @@
+country: India
+jurisdiction_code: IN
+authorities:
+  - name: Securities and Exchange Board of India (SEBI)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - sebi.gov.in
+  - name: Ministry of Corporate Affairs (MCA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - mca.gov.in
+  - name: Reserve Bank of India (RBI)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - rbi.org.in
+  - name: National Stock Exchange of India (NSE)
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - nseindia.com
+  - name: BSE India
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - bseindia.com
+official_gazettes:
+  - domain: egazette.gov.in
+    name: The Gazette of India
+topics:
+  - BRSR
+  - BRSR Core
+  - CSR
+  - corporate social responsibility
+  - climate risk
+  - green bonds
+instrument_types:
+  - Circular
+  - Act
+  - Master Circular
+  - Notification
+  - Guidelines
+lifecycle_terms:
+  - supersedes
+  - superseded
+  - in supersession of
+  - amends
+  - amended
+  - substituted
+  - in force
+  - repealed

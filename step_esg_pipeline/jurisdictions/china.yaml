@@ -1,0 +1,45 @@
+country: China
+jurisdiction_code: CN
+authorities:
+  - name: Ministry of Ecology and Environment
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - mee.gov.cn
+  - name: China Securities Regulatory Commission
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - csrc.gov.cn
+  - name: Shanghai Stock Exchange
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - sse.com.cn
+      - english.sse.com.cn
+      - static.sse.com.cn
+  - name: Shenzhen Stock Exchange
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - szse.cn
+  - name: Beijing Stock Exchange
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - bse.cc
+topics:
+  - ESG
+  - environmental information disclosure
+  - sustainability report guidelines
+  - emissions trading system
+  - green finance
+instrument_types:
+  - Measures
+  - Guidelines
+  - Announcement
+  - Rules
+  - Notice
+lifecycle_terms:
+  - superseded
+  - replaced
+  - amended
+  - revised
+  - trial
+  - in force
+  - repealed

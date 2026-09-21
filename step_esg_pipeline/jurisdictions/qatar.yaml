@@ -1,0 +1,28 @@
+country: Qatar
+jurisdiction_code: QA
+authorities:
+  - name: Qatar Financial Markets Authority (QFMA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - qfma.org.qa
+  - name: Qatar Stock Exchange (QSE)
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - qe.com.qa
+  - name: Qatar Central Bank (QCB)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - qcb.gov.qa
+topics:
+  - ESG reporting guidance
+  - sustainability disclosure
+  - corporate governance
+instrument_types:
+  - Guidance
+  - Rules
+  - Circular
+lifecycle_terms:
+  - superseded
+  - replaced
+  - amended
+  - in force

@@ -1,0 +1,36 @@
+country: Singapore
+jurisdiction_code: SG
+authorities:
+  - name: Monetary Authority of Singapore (MAS)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - mas.gov.sg
+  - name: Singapore Exchange (SGX Group)
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - sgx.com
+      - rulebook.sgx.com
+  - name: Accounting and Corporate Regulatory Authority (ACRA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - acra.gov.sg
+topics:
+  - Sustainability Reporting Guide
+  - Listing Rules 711A & 711B
+  - Environmental Risk Management Guidelines
+  - Singapore Green Bond Standards
+  - Climate reporting ISSB alignment
+instrument_types:
+  - Practice Note
+  - Guidelines
+  - Listing Rules
+  - Consultation Paper
+  - Framework
+lifecycle_terms:
+  - superseded
+  - replaced
+  - consultation
+  - proposed
+  - final
+  - amended
+  - in force

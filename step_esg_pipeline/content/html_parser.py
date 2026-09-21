@@ -3,11 +3,36 @@ from typing import Optional
 from bs4 import BeautifulSoup
 
 
+TECHNICAL_TITLE_PATTERNS = [
+    r"\baccess\s*denied\b",
+    r"\b403\s*forbidden\b",
+    r"^\s*forbidden\s*$",
+    r"\bcloudflare\b",
+    r"just\s*a\s*moment",
+    r"\bpage\s*not\s*found\b",
+    r"\b404\s*not\s*found\b",
+    r"^\s*404\s*$",
+    r"^\s*error\s*$",
+    r"^\s*login\s*$",
+    r"\baws\s*waf\b",
+    r"\bakamai\b",
+    r"security\s*check",
+    r"verify\s*you\s*are\s*human",
+]
+
+
 class HtmlParser:
+    @staticmethod
+    def is_technical_title(title: str) -> bool:
+        if not title:
+            return True
+        t = title.strip().lower()
+        return any(re.search(pat, t, re.I) for pat in TECHNICAL_TITLE_PATTERNS)
+
     @staticmethod
     def parse(html: str, base_url: str = "") -> dict:
         soup = BeautifulSoup(html, "html.parser")
-        title = HtmlParser._extract_title(soup)
+        doc_title, tech_title = HtmlParser._extract_title(soup)
         headings = HtmlParser._extract_headings(soup)
         organisation = HtmlParser._extract_organisation(soup)
         publication_date = HtmlParser._extract_meta_date(soup)
@@ -15,9 +40,9 @@ class HtmlParser:
         keywords = HtmlParser._extract_keywords(soup)
 
         # Soft 404 / Maintenance / Challenge detection per Sections 4 & 5
-        is_soft_404 = HtmlParser._check_soft_404(title, soup, text_sample)
-        is_maintenance = HtmlParser._check_maintenance(title, soup, text_sample)
-        is_challenge_page = HtmlParser._check_challenge(title, soup, text_sample)
+        is_soft_404 = HtmlParser._check_soft_404(doc_title or tech_title, soup, text_sample)
+        is_maintenance = HtmlParser._check_maintenance(doc_title or tech_title, soup, text_sample)
+        is_challenge_page = HtmlParser._check_challenge(doc_title or tech_title, soup, text_sample)
 
         # Fallback date extraction from body if meta was empty
         if not publication_date and text_sample:
@@ -26,11 +51,12 @@ class HtmlParser:
         effective_date = HtmlParser._extract_effective_date(text_sample)
         amendment_date = HtmlParser._extract_amendment_date(text_sample)
         version = HtmlParser._extract_version(text_sample)
-        document_number = HtmlParser._extract_document_number(title, headings, text_sample)
+        document_number = HtmlParser._extract_document_number(doc_title, headings, text_sample)
         repeal_signals = HtmlParser._extract_repeal_signals(text_sample)
 
         return {
-            "title": title,
+            "title": doc_title,
+            "technical_page_title": tech_title,
             "headings": headings,
             "organisation": organisation,
             "publication_date": publication_date,
@@ -48,15 +74,35 @@ class HtmlParser:
         }
 
     @staticmethod
-    def _extract_title(soup: BeautifulSoup) -> str:
+    def _extract_title(soup: BeautifulSoup) -> tuple[str, str]:
+        """Hierarchy: 1. h1 -> 2. og:title -> 3. title tag.
+        Rejects technical titles. Returns: (document_title, technical_page_title)
+        """
+        raw_page_title = ""
         if soup.title and soup.title.string:
-            clean = soup.title.string.strip()
-            if clean:
-                return clean
+            raw_page_title = soup.title.string.strip()
+
+        # 1. HTML h1
         h1 = soup.find("h1")
         if h1:
-            return h1.get_text(strip=True)
-        return ""
+            h1_text = h1.get_text(strip=True)
+            if h1_text and not HtmlParser.is_technical_title(h1_text):
+                return h1_text, (raw_page_title if HtmlParser.is_technical_title(raw_page_title) else "")
+
+        # 2. HTML OpenGraph title
+        og_tag = soup.find("meta", property="og:title") or soup.find("meta", attrs={"name": "twitter:title"})
+        if og_tag and og_tag.get("content"):
+            og_text = og_tag.get("content", "").strip()
+            if og_text and not HtmlParser.is_technical_title(og_text):
+                return og_text, (raw_page_title if HtmlParser.is_technical_title(raw_page_title) else "")
+
+        # 3. HTML <title>
+        if raw_page_title:
+            if not HtmlParser.is_technical_title(raw_page_title):
+                return raw_page_title, ""
+            return "UNKNOWN", raw_page_title
+
+        return "UNKNOWN", ""
 
     @staticmethod
     def _extract_headings(soup: BeautifulSoup) -> list[str]:

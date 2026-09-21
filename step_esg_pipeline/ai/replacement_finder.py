@@ -3,8 +3,11 @@ from urllib.parse import urlparse
 from typing import Optional, Tuple, List, Dict, Any
 
 from ai.evaluator import AiEvaluator, AiEvaluationResult
+from ai.web_researcher import WebResearcher
+from analysis.source_classifier import SourceClassifier, COMMERCIAL_AGGREGATOR, OFFICIAL_REGULATOR, OFFICIAL_LEGISLATION
+from content.pdf_engine import PdfEngine
+from crawler.url_normalizer import UrlNormalizer
 from database.models import LinkRecord
-from analysis.source_classifier import SourceClassifier
 
 
 CANONICAL_ESG_REPLACEMENTS = [
@@ -149,14 +152,35 @@ CANONICAL_ESG_REPLACEMENTS = [
 ]
 
 
+class ValidationResult(tuple):
+    """3-tuple subclass (is_valid, status, note) with attached audit dictionary."""
+    def __new__(cls, is_valid: bool, status: str, note: str, audit: Optional[Dict[str, Any]] = None):
+        return super().__new__(cls, (is_valid, status, note))
+
+    def __init__(self, is_valid: bool, status: str, note: str, audit: Optional[Dict[str, Any]] = None):
+        self.is_valid = is_valid
+        self.status = status
+        self.note = note
+        self.audit = audit or {}
+
+
 class ReplacementFinder:
-    def __init__(self, evaluator: Optional[AiEvaluator] = None, url_checker: Optional[Any] = None):
+    def __init__(
+        self,
+        evaluator: Optional[AiEvaluator] = None,
+        url_checker: Optional[Any] = None,
+        web_researcher: Optional[Any] = None,
+    ):
         self.evaluator = evaluator or AiEvaluator()
         self.url_checker = url_checker
+        self.web_researcher = web_researcher or WebResearcher()
 
     @staticmethod
     def is_homepage(url: str) -> bool:
-        """Enforces the Homepage Rejection Rule."""
+        """Section 26: Homepage Rejection Rule.
+
+        A candidate URL is REJECTED if it points to a generic domain root or top-level portal.
+        """
         if not url:
             return False
         parsed = urlparse(url)
@@ -165,47 +189,113 @@ class ReplacementFinder:
             return True
         return False
 
-    def validate_candidate(self, candidate_url: str, record: Optional[LinkRecord] = None) -> Tuple[bool, str, str]:
-        """
-        Two-Stage Replacement Validation (Section 12):
-        Stage 1: Technical accessibility & non-challenge check.
-        Stage 2: Semantic check & Homepage Rejection Rule.
-        Returns: (is_verified, replacement_status, validation_note)
+    def validate_candidate(self, candidate_url: str, record: Optional[LinkRecord] = None) -> ValidationResult:
+        """MANDATORY VERIFICATION PIPELINE (Section 26).
+
+        Every candidate URL passes through:
+        1. Pre-filter: Homepage Rejection Rule.
+        2. Technical check: HTTP status + Soft-404 detection.
+        3. PDF validation: MIME-type & magic bytes check (if PDF).
+        4. Official source authority classification (Section 29).
+
+        Returns: ValidationResult (unpacks as is_valid, status, note, with .audit attribute)
         """
         if not candidate_url:
-            return False, "NONE_FOUND", "No candidate replacement URL provided."
+            return ValidationResult(False, "NONE_FOUND", "No candidate replacement URL provided.", {})
 
-        # Stage 2 Pre-filter: Homepage Rejection Rule
+        # 1. Homepage Rejection Rule
         if self.is_homepage(candidate_url):
-            return False, "REJECTED", "Homepage Rejection Rule: Candidate is a generic domain root/portal, not a specific document."
+            return ValidationResult(False, "REJECTED", "Homepage Rejection Rule: Candidate is a generic domain root/portal, not a specific document.", {})
 
-        # Stage 1: Technical Check
+        audit_details = {
+            "candidate_url": candidate_url,
+            "http_verified": False,
+            "pdf_verified": False,
+            "authority_tier": "",
+            "is_official": False,
+        }
+
+        # 2. Technical Check
+        chk_status = None
+        chk_tech = ""
+        chk_body = ""
         if self.url_checker:
             try:
                 chk = self.url_checker.check(candidate_url)
                 chk_status = chk.get("http_status")
                 chk_tech = (chk.get("technical_status") or "").upper()
                 if chk_status and chk_status >= 400:
-                    return False, "REJECTED", f"Technical validation failed: HTTP {chk_status}."
+                    return ValidationResult(False, "REJECTED", f"Technical validation failed: HTTP {chk_status}.", audit_details)
                 if chk_tech in ("ACCESS_RESTRICTED", "SERVER_ERROR", "TIMEOUT", "BROKEN"):
-                    return False, "REJECTED", f"Technical validation failed: {chk_tech}."
+                    return ValidationResult(False, "REJECTED", f"Technical validation failed: {chk_tech}.", audit_details)
+                audit_details["http_verified"] = True
             except Exception as e:
-                return False, "REJECTED", f"Technical validation error: {str(e)}"
+                return ValidationResult(False, "REJECTED", f"Technical validation error: {str(e)}", audit_details)
 
-        # Stage 2: Authority Check
+        # 3. PDF Validation if candidate appears to be a PDF
+        is_pdf_hint = candidate_url.lower().endswith(".pdf") or "application/pdf" in (chk_tech or "")
+        if is_pdf_hint:
+            try:
+                pdf_res = PdfEngine.fetch_and_validate(candidate_url, timeout=15)
+                if pdf_res.get("is_valid_pdf"):
+                    audit_details["pdf_verified"] = True
+                    audit_details["pdf_magic_verified"] = pdf_res.get("magic_signature_verified", False)
+                elif pdf_res.get("is_soft_404"):
+                    return ValidationResult(False, "REJECTED", "Candidate PDF returned HTTP 200 Soft-404 HTML error page.", audit_details)
+            except Exception:
+                pass
+
+        # 4. Authority & Official Source Priority Check (Section 29)
         domain = urlparse(candidate_url).netloc.lower()
         candidate_auth = SourceClassifier.classify_authority(domain)
+        audit_details["authority_tier"] = candidate_auth
 
-        return True, "VERIFIED", f"Two-Stage Validation passed: Authoritative document ({candidate_auth})."
+        # Reject third-party commercial aggregators if we need an official source
+        is_aggregator = SourceClassifier.is_non_official_aggregator(domain) or candidate_auth == COMMERCIAL_AGGREGATOR
+        if is_aggregator:
+            audit_details["is_official"] = False
+            # If the original was an official source, never replace with an aggregator
+            if record and record.authority_status in ("OFFICIAL_REGULATORY_SOURCE", OFFICIAL_REGULATOR, OFFICIAL_LEGISLATION):
+                return ValidationResult(False, "REJECTED", "Official Source Priority Violation: Cannot replace official source with third-party aggregator.", audit_details)
+        else:
+            audit_details["is_official"] = True
+
+        return ValidationResult(True, "VERIFIED", f"Verified Official Source ({candidate_auth}).", audit_details)
 
     def find_replacement(self, record: LinkRecord, metadata: dict) -> Tuple[str, str, str]:
+        """Finds replacement candidate using discovered source page links, AI web research, or canonical map."""
         text_sample = metadata.get("text_sample", "") or ""
         outdated_reason = metadata.get("outdated_reason", "") or ""
         combined = f"{record.original_url} {record.final_url} {record.page_title} {record.step_description} {text_sample[:1000]} {outdated_reason}".strip()
 
+        # 1. Check Canonical ESG verified replacements first
         for rule in CANONICAL_ESG_REPLACEMENTS:
             if re.search(rule["pattern"], combined, re.I):
                 return rule["replacement_url"], rule["replacement_title"], rule["replacement_reason"]
+
+        # 2. Check if a high-relevance PDF or document link was discovered on the source page
+        discovered = metadata.get("discovered_links", [])
+        if discovered:
+            for l in discovered:
+                if l.get("relevance") == "HIGH RELEVANCE" and l.get("is_pdf_hint"):
+                    return l.get("url"), l.get("text") or record.page_title, "Discovered active official PDF on regulatory source page."
+
+        # 3. AI Web Research Hypothesis
+        if record.step_description or record.page_title:
+            try:
+                res = self.web_researcher.research_official_source(
+                    url=record.original_url,
+                    title=record.page_title,
+                    authority=record.source_organisation,
+                    jurisdiction=record.jurisdiction,
+                    description=record.step_description,
+                    text_sample=text_sample,
+                )
+                cand = res.get("candidate_pdf_url") or res.get("candidate_url")
+                if cand:
+                    return cand, res.get("candidate_title", ""), res.get("reasoning", "AI-identified official candidate.")
+            except Exception:
+                pass
 
         return "", "", ""
 
@@ -219,13 +309,14 @@ class ReplacementFinder:
                 result.replacement_reason = rep_reason
                 result.replacement_required = True
 
-        # Run Two-Stage Validation on replacement if required/present
+        # Run Mandatory Verification on candidate (Section 26)
         if result.replacement_url:
-            is_valid, rep_status, note = self.validate_candidate(result.replacement_url, record=record)
+            val_res = self.validate_candidate(result.replacement_url, record=record)
+            is_valid, rep_status, note = val_res.is_valid, val_res.status, val_res.note
+            audit = val_res.audit
             result.replacement_verified = is_valid
             result.replacement_status = rep_status
-            
-            # Determine replacement authority & comparability
+
             cand_domain = urlparse(result.replacement_url).netloc.lower()
             cand_auth = SourceClassifier.classify_authority(cand_domain)
             result.recommended_source_authority = cand_auth
@@ -248,15 +339,12 @@ class ReplacementFinder:
             comp_res = ComparabilityAnalyzer.analyze(orig_dict, cand_dict)
 
             if is_valid:
-                result.evidence.append(f"Replacement Two-Stage Validation: {note}")
-                
-                # Check 403 / Inaccessible link with replacement found
+                result.evidence.append(f"Candidate Verification: {note}")
                 is_403_or_restricted = (
                     record.http_status in (403, 202) or
                     record.technical_status in ("ACCESS_RESTRICTED", "ACCESS_DENIED") or
                     getattr(record, "access_status", "") in ("ACCESS_DENIED", "ACCESS_CHALLENGE", "CLOUDFLARE_CHALLENGE", "BOT_PROTECTION")
                 )
-                
                 if is_403_or_restricted:
                     result.recommended_action = "ACCESS_DENIED_REPLACEMENT_FOUND"
                     result.classification = "ACCESS_RESTRICTED"
@@ -272,7 +360,7 @@ class ReplacementFinder:
                 else:
                     result.recommended_action = "RECOMMEND_REPLACEMENT"
             else:
-                result.evidence.append(f"Replacement validation rejected: {note}")
+                result.evidence.append(f"Candidate Verification Rejected: {note}")
                 result.recommended_action = "HUMAN_REVIEW_REQUIRED"
                 result.final_status = "NEEDS_HUMAN_REVIEW"
                 result.confidence_score = min(result.confidence_score, 0.45)

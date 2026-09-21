@@ -1,0 +1,45 @@
+country: United Kingdom
+jurisdiction_code: GB
+authorities:
+  - name: Financial Conduct Authority (FCA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - fca.org.uk
+  - name: UK Legislation (The National Archives)
+    tier: TIER_1_OFFICIAL_LEGISLATION
+    domains:
+      - legislation.gov.uk
+  - name: UK Government (BEIS / DESNZ / Cabinet Office)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - gov.uk
+      - assets.publishing.service.gov.uk
+  - name: Financial Reporting Council (FRC)
+    tier: TIER_2_OFFICIAL_STANDARD_BODY
+    domains:
+      - frc.org.uk
+  - name: London Stock Exchange (LSE)
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - londonstockexchange.com
+official_gazettes:
+  - domain: thegazette.co.uk
+    name: The Gazette
+topics:
+  - TCFD
+  - Mandatory Climate-Related Financial Disclosures
+  - Environment Act 2021
+  - Companies Climate-related Financial Disclosure Regulations
+  - SDR (Sustainability Disclosure Requirements)
+instrument_types:
+  - Act of Parliament
+  - Statutory Instrument
+  - Policy Statement
+  - Guidance
+lifecycle_terms:
+  - superseded
+  - replaced
+  - amended
+  - repealed
+  - in force
+  - revoked

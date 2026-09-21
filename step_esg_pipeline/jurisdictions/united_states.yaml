@@ -1,0 +1,43 @@
+country: United States
+jurisdiction_code: US
+authorities:
+  - name: Securities and Exchange Commission (SEC)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - sec.gov
+  - name: Department of Labor (DOL / EBSA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - dol.gov
+  - name: California State Legislature
+    tier: TIER_1_OFFICIAL_LEGISLATION
+    domains:
+      - leginfo.legislature.ca.gov
+      - ca.gov
+  - name: Environmental Protection Agency (EPA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - epa.gov
+official_gazettes:
+  - domain: federalregister.gov
+    name: Federal Register
+topics:
+  - SEC Climate-Related Disclosure Rule
+  - Final Rule 33-11275
+  - ERISA ESG Rule
+  - California SB 253
+  - California SB 261
+  - Climate Corporate Data Accountability Act
+instrument_types:
+  - Final Rule
+  - Statute / Bill
+  - Regulation
+  - Release
+lifecycle_terms:
+  - superseded
+  - stayed
+  - litigation stay
+  - amended
+  - repealed
+  - effective
+  - in force

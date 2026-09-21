@@ -1,0 +1,34 @@
+country: Bahrain
+jurisdiction_code: BH
+authorities:
+  - name: Central Bank of Bahrain
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - cbb.gov.bh
+  - name: Bahrain Bourse
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - bahrainbourse.com
+official_gazettes:
+  - domain: legalaffairs.gov.bh
+    name: Official Gazette of Bahrain
+topics:
+  - ESG
+  - sustainability reporting
+  - ESG disclosure
+  - climate disclosure
+  - corporate governance
+instrument_types:
+  - Guideline
+  - Circular
+  - Regulation
+  - Rulebook
+  - Law
+lifecycle_terms:
+  - superseded
+  - replaced
+  - amended
+  - revised
+  - withdrawn
+  - repealed
+  - in force

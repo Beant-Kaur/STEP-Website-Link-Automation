@@ -2,10 +2,126 @@ from typing import Optional, Dict, Any, Tuple
 
 from ai.evaluator import AiEvaluationResult
 from database.models import LinkRecord
-from analysis.source_classifier import SourceClassifier
 
 
 class ConfidenceEngine:
+    """
+    Evaluates multi-dimensional confidence and computes sub-scores:
+    - technical_confidence
+    - authority_confidence
+    - identity_confidence
+    - currentness_confidence
+    - replacement_confidence
+    - overall_confidence
+
+    Enforces Section 13 hard confidence caps:
+    - Access blocked / challenge unresolved: capped at 0.40
+    - Technical page title rejected (e.g. Access Denied): capped at 0.50
+    - Regulatory lifecycle unknown: capped at 0.55
+    """
+
+    @classmethod
+    def compute_sub_scores(
+        cls,
+        result: Optional[AiEvaluationResult] = None,
+        record: Optional[LinkRecord] = None,
+        metadata: Optional[dict] = None,
+    ) -> Dict[str, float]:
+        meta = metadata or {}
+        cls_name = (getattr(result, "classification", "") or getattr(record, "classification", "") or "").upper()
+        http_status = getattr(record, "http_status", None)
+        tech_status = (getattr(record, "technical_status", "") or "").upper()
+        access_status = (getattr(record, "access_status", "") or "").upper()
+        auth_status = (getattr(record, "authority_status", "") or meta.get("authority_status") or "").upper()
+        reg_status = (getattr(record, "regulatory_status", "") or meta.get("regulatory_status") or "").upper()
+        fresh_status = (getattr(record, "freshness_status", "") or meta.get("freshness_status") or "").upper()
+        cand_status = (getattr(record, "candidate_status", "") or "").upper()
+        rep_verified = meta.get("replacement_verified", False) or getattr(record, "replacement_verified", False) or getattr(result, "replacement_verified", False)
+        has_rep = bool(getattr(record, "replacement_url", "") or getattr(result, "replacement_url", ""))
+
+        tech_title = (getattr(record, "technical_page_title", "") or "").lower()
+        has_tech_title_err = any(err in tech_title for err in ["access denied", "403 forbidden", "cloudflare", "waf", "security check"])
+
+        # 1. Technical Confidence
+        if http_status in (403, 202) or access_status in ("ACCESS_DENIED", "ACCESS_CHALLENGE", "CLOUDFLARE_CHALLENGE") or cls_name == "ACCESS_RESTRICTED":
+            tech_conf = 0.30
+        elif http_status in (404, 410) or access_status == "BROKEN_SOFT_404" or tech_status == "BROKEN" or cls_name == "BROKEN":
+            tech_conf = 0.95
+        elif tech_status == "ACCESSIBLE_VIA_BROWSER" or (record and record.pdf_magic_signature_verified):
+            tech_conf = 0.95
+        elif http_status == 200:
+            tech_conf = 0.90
+        elif cls_name == "TEMPORARILY_UNAVAILABLE":
+            tech_conf = 0.35
+        else:
+            tech_conf = 0.50
+
+        # 2. Authority Confidence
+        if "TIER_1" in auth_status or "OFFICIAL" in auth_status:
+            auth_conf = 0.95
+        elif "TIER_2" in auth_status or "STANDARDS" in auth_status or "EXCHANGE" in auth_status:
+            auth_conf = 0.85
+        elif "TIER_3" in auth_status or "COMMERCIAL" in auth_status or "LAW_FIRM" in auth_status:
+            auth_conf = 0.40
+        else:
+            auth_conf = 0.30
+
+        # 3. Identity Confidence
+        if has_tech_title_err:
+            id_conf = 0.25
+        elif getattr(record, "instrument_name", "") and getattr(record, "country", ""):
+            id_conf = 0.90
+        elif getattr(record, "page_title", "") and len(record.page_title) > 5:
+            id_conf = 0.75
+        else:
+            id_conf = 0.35
+
+        # 4. Currentness Confidence
+        if reg_status in ("CURRENT_IN_FORCE", "LEGALLY_BINDING_IN_FORCE"):
+            cur_conf = 0.90
+        elif reg_status in ("SUPERSEDED", "REPEALED", "AMENDED") or fresh_status in ("COMPLETELY_SUPERSEDED", "REPEALED_WITHDRAWN", "OBSOLETE"):
+            cur_conf = 0.85
+        elif reg_status in ("CONSULTATION", "CONSULTATION_DRAFT"):
+            cur_conf = 0.50
+        elif reg_status == "STAYED_PENDING_LITIGATION":
+            cur_conf = 0.80
+        elif reg_status == "UNKNOWN" or not reg_status:
+            cur_conf = 0.30
+        else:
+            cur_conf = 0.40
+
+        # 5. Replacement Confidence
+        if not has_rep and (cls_name in ("VALID_AND_CURRENT", "CURRENT_IN_FORCE") or reg_status == "CURRENT_IN_FORCE"):
+            rep_conf = 1.0  # Not needed
+        elif rep_verified or cand_status in ("REPLACEMENT_VERIFIED", "CANDIDATE_VERIFIED"):
+            rep_conf = 0.90
+        elif has_rep:
+            rep_conf = 0.40
+        else:
+            rep_conf = 0.20
+
+        # Weighted calculation
+        overall = (tech_conf * 0.20) + (auth_conf * 0.20) + (id_conf * 0.20) + (cur_conf * 0.25) + (rep_conf * 0.15)
+
+        # Enforce Hard Caps
+        if http_status in (403, 202) or access_status in ("ACCESS_DENIED", "ACCESS_CHALLENGE", "CLOUDFLARE_CHALLENGE") or cls_name == "ACCESS_RESTRICTED":
+            overall = min(overall, 0.40)
+
+        if has_tech_title_err:
+            overall = min(overall, 0.50)
+
+        if reg_status == "UNKNOWN" or not reg_status:
+            overall = min(overall, 0.55)
+
+        return {
+            "technical_confidence": round(tech_conf, 2),
+            "authority_confidence": round(auth_conf, 2),
+            "identity_confidence": round(id_conf, 2),
+            "currentness_confidence": round(cur_conf, 2),
+            "replacement_confidence": round(rep_conf, 2),
+            "overall_confidence": round(overall, 2),
+        }
+
     @staticmethod
     def score(
         result: AiEvaluationResult,
@@ -19,7 +135,7 @@ class ConfidenceEngine:
         has_text = text_len >= 250
         has_replacement = bool(result.replacement_url)
         rep_verified = meta.get("replacement_verified", False) or getattr(result, "replacement_verified", False)
-        
+
         # 1. ACCESS_RESTRICTED: Cloudflare / CAPTCHA / 403 / 202
         if cls == "ACCESS_RESTRICTED":
             score = 0.30
@@ -157,7 +273,7 @@ class ConfidenceEngine:
             prec_pts = 8
 
         # 7. Replacement Verification Status: 5 pts
-        rep_pts = 5  # No replacement needed for valid & current link
+        rep_pts = 5
 
         total_pts = tech_pts + auth_pts + rel_pts + fresh_pts + app_pts + prec_pts + rep_pts
         total_pts = max(10, min(total_pts, 100))
@@ -183,4 +299,15 @@ class ConfidenceEngine:
         score_val, reason_str = self.score(result, record=record, metadata=metadata)
         result.confidence_score = score_val
         result.confidence_reason = reason_str
+
+        # Also calculate and attach sub-scores to record if present
+        if record:
+            sub = self.compute_sub_scores(result=result, record=record, metadata=metadata)
+            record.technical_confidence = sub["technical_confidence"]
+            record.authority_confidence = sub["authority_confidence"]
+            record.identity_confidence = sub["identity_confidence"]
+            record.currentness_confidence = sub["currentness_confidence"]
+            record.replacement_confidence = sub["replacement_confidence"]
+            record.overall_confidence = sub["overall_confidence"]
+
         return result

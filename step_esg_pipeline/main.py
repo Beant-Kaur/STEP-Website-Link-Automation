@@ -36,7 +36,10 @@ def main(argv: list[str] | None = None) -> int:
     elif args.url or args.kajabi:
         import requests
         url = args.url or "https://step.mykajabi.com/free-digital-content"
-        resp = requests.get(url, timeout=30)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(url, headers=headers, timeout=30)
         resp.raise_for_status()
         html = resp.text
         base_url = url

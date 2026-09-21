@@ -1,0 +1,51 @@
+country: United Arab Emirates
+jurisdiction_code: AE
+authorities:
+  - name: Securities and Commodities Authority (SCA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - sca.gov.ae
+  - name: Central Bank of the UAE (CBUAE)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - centralbank.ae
+      - rulebook.centralbank.ae
+  - name: Abu Dhabi Securities Exchange (ADX)
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - adx.ae
+      - adxservices.adx.ae
+  - name: Dubai Financial Market (DFM)
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - dfm.ae
+  - name: Ministry of Climate Change and Environment (MOCCAE)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - moccae.gov.ae
+  - name: UAE Legislation Portal
+    tier: TIER_1_OFFICIAL_LEGISLATION
+    domains:
+      - uaelegislation.gov.ae
+official_gazettes:
+  - domain: uaelegislation.gov.ae
+    name: UAE Official Legislation
+topics:
+  - Federal Decree-Law No. 11 of 2024
+  - ADX ESG Disclosure Guidelines
+  - Corporate Governance Guide
+  - National Carbon Credit Registry
+  - Principles for Sustainability-Related Disclosures
+instrument_types:
+  - Federal Decree-Law
+  - Decision
+  - Guidance
+  - Principles
+  - Rulebook
+lifecycle_terms:
+  - superseded
+  - replaced
+  - amended
+  - effective
+  - in force
+  - repealed

@@ -1,0 +1,30 @@
+country: Oman
+jurisdiction_code: OM
+authorities:
+  - name: Financial Services Authority (FSA / formerly CMA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - fsa.gov.om
+      - cma.gov.om
+  - name: Muscat Stock Exchange (MSX)
+    tier: TIER_2_OFFICIAL_EXCHANGE
+    domains:
+      - msx.om
+  - name: Central Bank of Oman
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - cbo.gov.om
+topics:
+  - ESG disclosure guidelines
+  - sustainability reporting
+  - corporate governance
+instrument_types:
+  - Guidelines
+  - Decision
+  - Code
+  - Circular
+lifecycle_terms:
+  - superseded
+  - replaced
+  - amended
+  - in force

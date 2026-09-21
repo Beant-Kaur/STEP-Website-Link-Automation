@@ -1,0 +1,58 @@
+country: European Union
+jurisdiction_code: EU
+authorities:
+  - name: European Commission
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - ec.europa.eu
+      - europa.eu
+  - name: EUR-Lex (EU Publications Office)
+    tier: TIER_1_OFFICIAL_LEGISLATION
+    domains:
+      - eur-lex.europa.eu
+  - name: European Parliament / Council of the European Union
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - europarl.europa.eu
+      - consilium.europa.eu
+  - name: EFRAG (European Financial Reporting Advisory Group)
+    tier: TIER_2_OFFICIAL_STANDARD_BODY
+    domains:
+      - efrag.org
+  - name: European Securities and Markets Authority (ESMA)
+    tier: TIER_1_PRIMARY_REGULATOR
+    domains:
+      - esma.europa.eu
+official_gazettes:
+  - domain: eur-lex.europa.eu
+    name: Official Journal of the European Union
+topics:
+  - CSRD
+  - ESRS
+  - VSME
+  - SFDR
+  - EU Taxonomy
+  - CSDDD
+  - EU ETS
+  - RED II
+  - RED III
+  - EED
+  - Ecodesign
+  - EUDR
+  - NFRD
+instrument_types:
+  - Directive
+  - Regulation
+  - Delegated Regulation
+  - Recommendation
+  - Decision
+lifecycle_terms:
+  - replaces
+  - repealed
+  - repealed by
+  - amends
+  - amended by
+  - consolidated
+  - in force
+  - transposed
+  - enters into force

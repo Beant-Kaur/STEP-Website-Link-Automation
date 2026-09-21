@@ -1,12 +1,8 @@
-"""Regulatory Reference Database package for STEP ESG Pipeline."""
+"""Reference package for STEP Pipeline.
 
-from .models import RegulatoryAuthority, RegulatoryResource, ResourceVersion
-from .excel_importer import ExcelReferenceDatabase, RegulatoryDatabaseError
+Note: The static Excel Regulatory Reference Database has been completely removed.
+Regulatory sources and authorities are dynamically discovered and verified via
+web crawling, Playwright analysis, PDF discovery, and AI research.
+"""
 
-__all__ = [
-    "RegulatoryAuthority",
-    "RegulatoryResource",
-    "ResourceVersion",
-    "ExcelReferenceDatabase",
-    "RegulatoryDatabaseError",
-]
+__all__ = []

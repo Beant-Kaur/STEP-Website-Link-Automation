@@ -1,12 +1,44 @@
 import re
-from typing import Optional
-import requests
-from bs4 import BeautifulSoup
+from typing import Optional, List, Dict, Any, Set
 from urllib.parse import urljoin, urlparse
+from bs4 import BeautifulSoup
 
 from crawler.url_checker import UrlChecker
 from crawler.redirect_checker import RedirectChecker
-from database.models import LinkRecord
+
+
+VALID_13_JURISDICTIONS = [
+    "Bahrain",
+    "China",
+    "European Union",
+    "India",
+    "Kingdom of Saudi Arabia",
+    "Kuwait",
+    "Oman",
+    "Qatar",
+    "Singapore",
+    "United Arab Emirates",
+    "United Kingdom",
+    "United States",
+    "Nigeria",
+]
+
+JURISDICTION_ALIASES = {
+    "eu": "European Union",
+    "european union": "European Union",
+    "eu reporting": "European Union",
+    "uk": "United Kingdom",
+    "united kingdom": "United Kingdom",
+    "uk standards": "United Kingdom",
+    "usa": "United States",
+    "us": "United States",
+    "united states": "United States",
+    "ksa": "Kingdom of Saudi Arabia",
+    "saudi arabia": "Kingdom of Saudi Arabia",
+    "kingdom of saudi arabia": "Kingdom of Saudi Arabia",
+    "uae": "United Arab Emirates",
+    "united arab emirates": "United Arab Emirates",
+}
 
 
 class StepExtractor:
@@ -15,119 +47,285 @@ class StepExtractor:
         self.url_checker = UrlChecker(timeout=timeout)
         self.redirect_checker = RedirectChecker()
 
+    @staticmethod
+    def match_country(raw_name: str) -> tuple[str, float, str]:
+        """Matches a raw text to one of the 13 valid countries.
+        Returns: (country_name, country_confidence, evidence)
+        """
+        if not raw_name:
+            return "UNKNOWN", 0.0, "No heading text provided"
+
+        cleaned = raw_name.strip()
+        cleaned_lower = cleaned.lower()
+
+        # Check exact valid country names
+        for c in VALID_13_JURISDICTIONS:
+            if c.lower() == cleaned_lower:
+                return c, 1.0, f"Exact match with target jurisdiction: '{cleaned}'"
+
+        # Check aliases
+        for alias, target in JURISDICTION_ALIASES.items():
+            if alias == cleaned_lower or alias in cleaned_lower:
+                return target, 1.0, f"Matched target jurisdiction via alias '{alias}': '{cleaned}'"
+
+        # Check substring
+        for c in VALID_13_JURISDICTIONS:
+            if c.lower() in cleaned_lower:
+                return c, 1.0, f"Target jurisdiction found in heading: '{cleaned}'"
+
+        return "UNKNOWN", 0.0, f"Heading '{cleaned}' does not match any of the 13 target jurisdictions"
+
     def extract_from_html(self, html: str, base_url: str = "", section: str = "") -> list[dict]:
+        """Extracts regulatory links specifically from the ESG Legislative Landscape section.
+        Audits only the 13 target jurisdictions and rejects general/unrelated page links.
+        """
         soup = BeautifulSoup(html, "html.parser")
-        if section:
-            soup = self._extract_section(soup, section)
+        target_section_name = section or "ESG Legislative Landscape"
 
-        links = []
-        seen = set()
+        # 1. Try to isolate the ESG Legislative Landscape section container
+        landscape_container = self._find_landscape_container(soup, target_section_name)
 
-        # Check for Kajabi-style accordions first
-        accordions = soup.find_all("div", class_=lambda c: c and "accordion" in c)
-        if accordions:
-            for card in accordions:
-                title_div = card.find("div", class_=lambda c: c and "accordion-title" in c)
-                collapse_div = card.find("div", class_=lambda c: c and "accordion-collapse" in c)
-                if not collapse_div:
-                    collapse_div = card
-
-                country = ""
-                if title_div:
-                    country = title_div.get_text(strip=True)
-
-                current_title = ""
-                for el in collapse_div.find_all(["p", "div", "li", "a"]):
-                    if el.name in ("p", "div", "li"):
-                        bold = el.find(["b", "strong"])
-                        if bold and bold.parent.name != "a":
-                            t = bold.get_text(strip=True)
-                            if t and not t.lower().startswith("link") and len(t) > 3 and t.lower() != "disclaimer:":
-                                current_title = t
-                    elif el.name == "a" and el.get("href"):
-                        href = el.get("href", "").strip()
-                        if not href or href.startswith(("javascript:", "mailto:", "#")):
-                            continue
-                        full_url = urljoin(base_url, href)
-                        cleaned = self._clean_url(full_url)
-                        if cleaned in seen:
-                            continue
-                        seen.add(cleaned)
-
-                        anchor_text = el.get_text(strip=True)
-                        parent_p = el.find_parent(["p", "li", "div"])
-                        p_text = parent_p.get_text(strip=True) if parent_p else ""
-                        reg_title = current_title or p_text[:80]
-                        if reg_title.lower().startswith("link") or len(reg_title) < 4:
-                            reg_title = p_text[:80] or anchor_text or cleaned
-
-                        links.append({
-                            "url": cleaned,
-                            "text": reg_title,
-                            "anchor_text": anchor_text,
-                            "title": el.get("title", "") or reg_title,
-                            "jurisdiction": country,
-                            "section_heading": country,
-                            "step_description": reg_title,
-                        })
+        target_soup = landscape_container if landscape_container is not None else soup
+        links = self._extract_from_kajabi_accordions(target_soup, base_url, target_section_name)
 
         if not links:
             # Fallback for flat HTML (e.g. sample files, unit test fixtures)
-            current_heading = ""
-            for el in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6", "a"]):
-                if el.name in ("h1", "h2", "h3", "h4", "h5", "h6"):
-                    current_heading = el.get_text(strip=True)
-                elif el.name == "a" and el.get("href"):
-                    href = el.get("href", "").strip()
+            links = self._extract_from_flat_html(target_soup, base_url, target_section_name)
+
+        return links
+
+    def _find_landscape_container(self, soup: BeautifulSoup, section_name: str) -> Optional[BeautifulSoup]:
+        """Locates the specific <section> or container for the ESG Legislative Landscape."""
+        section_pattern = re.compile(re.escape(section_name), re.I)
+
+        # Look for section heading in text nodes
+        for el in soup.find_all(string=section_pattern):
+            # Prefer parent <section>
+            sec = el.find_parent("section")
+            if sec:
+                return sec
+            # Fallback to parent container div
+            div = el.find_parent("div", class_=lambda c: c and ("section" in c or "container" in c))
+            if div:
+                return div
+
+        # Look in headings directly
+        for h in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
+            if section_pattern.search(h.get_text()):
+                sec = h.find_parent("section") or h.find_parent("div", class_=lambda c: c and "section" in c)
+                if sec:
+                    return sec
+
+        return None
+
+    def _extract_from_kajabi_accordions(self, container: BeautifulSoup, base_url: str, section_name: str) -> list[dict]:
+        """Extracts links from Kajabi block-type--accordion elements belonging to the 13 jurisdictions."""
+        links: List[Dict[str, Any]] = []
+        seen: Set[str] = set()
+
+        # Target top-level accordion blocks
+        blocks = container.find_all("div", class_=lambda c: c and "block-type--accordion" in c)
+        if not blocks:
+            # Check for direct .accordion elements that are not nested
+            all_accs = container.find_all("div", class_="accordion")
+            blocks = [a for a in all_accs if not a.find_parent("div", class_="accordion")]
+
+        if not blocks:
+            return []
+
+        step_pos = 0
+
+        for block in blocks:
+            # Extract Country Heading
+            title_el = block.find("h5") or block.find("div", class_=lambda c: c and "accordion-title" in c)
+            raw_title = title_el.get_text(strip=True) if title_el else ""
+
+            country, country_conf, country_ev = self.match_country(raw_title)
+
+            collapse = block.find("div", class_=lambda c: c and "accordion-collapse" in c) or block
+
+            # Iterate through contents preserving document hierarchy
+            current_doc_title = ""
+
+            # Check both paragraphs and list items
+            elements = collapse.find_all(["p", "li", "div"])
+
+            for el in elements:
+                # 1. If element has a bold title, it defines the document name
+                bolds = el.find_all(["strong", "b"])
+                for b in bolds:
+                    bt = b.get_text(strip=True)
+                    # Filter out generic labels like 'Link:', 'Disclaimer:', etc.
+                    clean_bt = re.sub(r"^(Link\s*:\s*|Link\s*)", "", bt, flags=re.I).strip()
+                    if len(clean_bt) > 4 and not clean_bt.lower().startswith("disclaimer"):
+                        current_doc_title = clean_bt
+
+                # 2. Extract links in this element
+                a_tags = el.find_all("a", href=True)
+                for a in a_tags:
+                    href = a.get("href", "").strip()
                     if not href or href.startswith(("javascript:", "mailto:", "#")):
                         continue
+
                     full_url = urljoin(base_url, href)
-                    cleaned = self._clean_url(full_url)
-                    if cleaned in seen:
+                    cleaned_url = self._clean_url(full_url)
+                    if cleaned_url in seen:
                         continue
-                    seen.add(cleaned)
-                    text = el.get_text(strip=True)
-                    if not text or text.lower() == "link":
-                        text = el.get("title", "") or current_heading or cleaned
-                    
-                    # Try to infer jurisdiction from current heading
-                    jurisdiction = ""
-                    for c in ("Bahrain", "China", "European Union", "EU", "India", "Kingdom of Saudi Arabia", "Saudi Arabia", "Kuwait", "Oman", "Qatar", "Singapore", "United Arab Emirates", "UAE", "United Kingdom", "UK", "United States", "USA", "Nigeria"):
-                        if c.lower() in current_heading.lower():
-                            jurisdiction = c
-                            break
+                    seen.add(cleaned_url)
+
+                    anchor_text = a.get_text(strip=True)
+                    clean_anchor = re.sub(r"^(Link\s*:\s*|Link\s*)", "", anchor_text, flags=re.I).strip()
+
+                    # Determine best document title
+                    if current_doc_title:
+                        reg_title = current_doc_title
+                    elif clean_anchor and len(clean_anchor) > 4 and not clean_anchor.lower().startswith("http"):
+                        reg_title = clean_anchor
+                    else:
+                        parent_text = el.get_text(strip=True)
+                        clean_parent = re.sub(r"^(Link\s*:\s*|Link\s*)", "", parent_text, flags=re.I).strip()
+                        reg_title = clean_parent[:120] if clean_parent else cleaned_url
+
+                    step_pos += 1
+                    links.append({
+                        "section": section_name,
+                        "country": country,
+                        "jurisdiction": country,
+                        "country_confidence": country_conf,
+                        "country_evidence": country_ev,
+                        "link_text": reg_title,
+                        "text": reg_title,
+                        "source_url": cleaned_url,
+                        "url": cleaned_url,
+                        "anchor_text": anchor_text,
+                        "title": reg_title,
+                        "step_position": step_pos,
+                        "step_description": reg_title,
+                        "section_heading": country,
+                    })
+
+                    # If this was a dedicated item in a list, reset current_doc_title
+                    if el.name == "li":
+                        current_doc_title = ""
+
+        return links
+
+    def _extract_from_flat_html(self, soup: BeautifulSoup, base_url: str, section_name: str) -> list[dict]:
+        """Fallback for flat HTML layouts (headings followed by lists or paragraphs)."""
+        links: List[Dict[str, Any]] = []
+        seen: Set[str] = set()
+
+        current_country = "UNKNOWN"
+        country_conf = 0.0
+        country_ev = "No country heading detected in flat HTML"
+        current_title = ""
+        step_pos = 0
+
+        # Traverse tags in document order
+        for el in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "a"]):
+            if el.name in ("h1", "h2", "h3", "h4", "h5", "h6"):
+                h_text = el.get_text(strip=True)
+                # Check if heading is the section title itself
+                if "esg legislative landscape" in h_text.lower():
+                    continue
+                matched_c, c_conf, c_ev = self.match_country(h_text)
+                if matched_c != "UNKNOWN":
+                    current_country = matched_c
+                    country_conf = c_conf
+                    country_ev = c_ev
+                    current_title = ""
+                else:
+                    current_title = h_text
+
+            elif el.name == "a":
+                href = el.get("href", "").strip()
+                if not href or href.startswith(("javascript:", "mailto:", "#")):
+                    continue
+                full_url = urljoin(base_url, href)
+                cleaned_url = self._clean_url(full_url)
+                if cleaned_url in seen:
+                    continue
+                seen.add(cleaned_url)
+                anchor_text = el.get_text(strip=True)
+                clean_anchor = re.sub(r"^(Link\s*:\s*|Link\s*)", "", anchor_text, flags=re.I).strip()
+                reg_title = current_title or clean_anchor or cleaned_url
+                step_pos += 1
+                links.append({
+                    "section": section_name,
+                    "country": current_country,
+                    "jurisdiction": current_country,
+                    "country_confidence": country_conf,
+                    "country_evidence": country_ev,
+                    "link_text": reg_title,
+                    "text": reg_title,
+                    "source_url": cleaned_url,
+                    "url": cleaned_url,
+                    "anchor_text": anchor_text,
+                    "title": reg_title,
+                    "step_position": step_pos,
+                    "step_description": reg_title,
+                    "section_heading": current_country,
+                })
+                current_title = ""
+
+            elif el.name in ("p", "li"):
+                bolds = el.find_all(["strong", "b"])
+                for b in bolds:
+                    bt = b.get_text(strip=True)
+                    clean_bt = re.sub(r"^(Link\s*:\s*|Link\s*)", "", bt, flags=re.I).strip()
+                    if len(clean_bt) > 3 and not clean_bt.lower().startswith("disclaimer"):
+                        current_title = clean_bt
+
+                # If element has links
+                a_tags = el.find_all("a", href=True)
+                for a in a_tags:
+                    href = a.get("href", "").strip()
+                    if not href or href.startswith(("javascript:", "mailto:", "#")):
+                        continue
+
+                    full_url = urljoin(base_url, href)
+                    cleaned_url = self._clean_url(full_url)
+                    if cleaned_url in seen:
+                        continue
+                    seen.add(cleaned_url)
+
+                    anchor_text = a.get_text(strip=True)
+                    clean_anchor = re.sub(r"^(Link\s*:\s*|Link\s*)", "", anchor_text, flags=re.I).strip()
+
+                    reg_title = current_title or clean_anchor or cleaned_url
+                    step_pos += 1
 
                     links.append({
-                        "url": cleaned,
-                        "text": text,
-                        "anchor_text": el.get_text(strip=True),
-                        "title": el.get("title", ""),
-                        "jurisdiction": jurisdiction,
-                        "section_heading": current_heading,
-                        "step_description": text,
+                        "section": section_name,
+                        "country": current_country,
+                        "jurisdiction": current_country,
+                        "country_confidence": country_conf,
+                        "country_evidence": country_ev,
+                        "link_text": reg_title,
+                        "text": reg_title,
+                        "source_url": cleaned_url,
+                        "url": cleaned_url,
+                        "anchor_text": anchor_text,
+                        "title": reg_title,
+                        "step_position": step_pos,
+                        "step_description": reg_title,
+                        "section_heading": current_country,
                     })
+
+                    if el.name == "li":
+                        current_title = ""
+
         return links
 
     @staticmethod
     def _clean_url(url: str) -> str:
         parsed = urlparse(url)
-        # Remove common tracking params
         if parsed.netloc.endswith("mykajabi.com") or parsed.path.startswith("/resource_redirect"):
             return url
+        # Keep non-tracking parameters
         params = [p for p in parsed.query.split("&") if not p.lower().startswith("utm_")]
-        return parsed._replace(query="&".join(params)).geturl()
-
-    def _extract_section(self, soup: BeautifulSoup, section: str) -> BeautifulSoup:
-        lower = section.lower()
-        for heading in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
-            if lower in heading.get_text(strip=True).lower():
-                container = heading.find_parent("section") or heading.find_parent("div")
-                if container:
-                    new_soup = BeautifulSoup("<div></div>", "html.parser")
-                    new_soup.div.append(container)
-                    return new_soup
-                break
-        return soup
+        clean_query = "&".join(params)
+        return parsed._replace(query=clean_query).geturl()
 
     def check_links(self, links: list[dict]) -> list[dict]:
         results = []
