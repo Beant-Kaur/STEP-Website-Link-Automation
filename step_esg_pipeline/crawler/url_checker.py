@@ -120,12 +120,22 @@ class UrlChecker:
 
         start_time = time.perf_counter()
         try:
-            response = self.session.get(
-                url,
-                timeout=self.timeout,
-                allow_redirects=True,
-                stream=True,
-            )
+            response = None
+            for attempt in range(self.max_retries + 1):
+                response = self.session.get(
+                    url,
+                    timeout=self.timeout,
+                    allow_redirects=True,
+                    stream=True,
+                )
+                # Retry with backoff if rate-limited (HTTP 429) or transient rate limit challenge
+                if response.status_code in (429, 403) and attempt < self.max_retries:
+                    retry_after = response.headers.get("Retry-After")
+                    delay = float(retry_after) if (retry_after and retry_after.isdigit()) else (self.backoff_factor ** attempt)
+                    if response.status_code == 429 or "rate" in response.headers.get("cf-mitigated", "").lower():
+                        time.sleep(min(delay, 5.0))
+                        continue
+                break
             elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
             result["response_time_ms"] = elapsed_ms
             result["http_status"] = response.status_code

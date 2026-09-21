@@ -25,9 +25,10 @@ class PlaywrightEngine:
     - 403 / anti-bot challenge bypass attempt with real browser context.
     """
 
-    def __init__(self, headless: bool = True, timeout: int = 25000):
+    def __init__(self, headless: bool = True, timeout: int = 25000, user_data_dir: Optional[str] = None):
         self.headless = headless
         self.timeout = timeout
+        self.user_data_dir = user_data_dir or os.path.join(os.path.dirname(os.path.dirname(__file__)), ".pw_session_profile")
         self._playwright = None
         self._browser = None
         self._browser_type = "chrome"
@@ -102,13 +103,41 @@ class PlaywrightEngine:
         - downloaded_pdf_data (bytes if download was triggered)
         """
         browser = self._ensure_browser()
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-            viewport={"width": 1280, "height": 800},
-            accept_downloads=True,
-            ignore_https_errors=True,
-        )
-        page = context.new_page()
+        context = None
+        is_persistent = False
+        if self.user_data_dir:
+            try:
+                os.makedirs(self.user_data_dir, exist_ok=True)
+                launch_args = {
+                    "user_data_dir": self.user_data_dir,
+                    "headless": self.headless,
+                    "args": [
+                        "--disable-blink-features=AutomationControlled",
+                        "--no-sandbox",
+                        "--disable-infobars",
+                    ],
+                    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                    "viewport": {"width": 1280, "height": 800},
+                    "accept_downloads": True,
+                    "ignore_https_errors": True,
+                }
+                if self._browser_type in ("chrome", "msedge"):
+                    launch_args["channel"] = self._browser_type
+                context = self._playwright.chromium.launch_persistent_context(**launch_args)
+                is_persistent = True
+            except Exception as e:
+                logger.debug(f"Persistent context fallback to ephemeral: {e}")
+                context = None
+
+        if context is None:
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                viewport={"width": 1280, "height": 800},
+                accept_downloads=True,
+                ignore_https_errors=True,
+            )
+
+        page = context.pages[0] if (is_persistent and context.pages) else context.new_page()
         try:
             page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
         except Exception:
@@ -228,10 +257,16 @@ class PlaywrightEngine:
             result["text"] = body_text[:6000]
 
             low_text = body_text.lower()
-            if any(x in low_text for x in ("access denied", "403 forbidden", "cf-chl-", "verify you are human", "checking your browser")):
+            low_title = title.lower()
+            if is_bot_challenge and not result.get("is_challenge_resolved"):
                 result["is_access_denied"] = True
-                if "cf-chl-" in low_text or "verify you are human" in low_text or "checking your browser" in low_text or "just a moment" in low_text:
+                result["is_challenge_page"] = True
+                result["is_turnstile_interactive"] = True
+            elif any(x in low_text or x in low_title for x in ("access denied", "403 forbidden", "cf-chl-", "verify you are human", "checking your browser", "just a moment")):
+                result["is_access_denied"] = True
+                if any(x in low_text or x in low_title for x in ("cf-chl-", "verify you are human", "checking your browser", "just a moment")):
                     result["is_challenge_page"] = True
+                    result["is_turnstile_interactive"] = True
             elif len(body_text) > 300:
                 result["is_access_denied"] = False
                 result["is_challenge_page"] = False
