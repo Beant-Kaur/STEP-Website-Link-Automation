@@ -132,12 +132,26 @@ class UrlChecker:
                 if h in response.headers:
                     result["headers"][h] = response.headers[h]
 
-            # Read a small snippet of body (up to 4096 bytes) for challenge detection
+            # Read snippet or HTML body (up to 512KB)
             body_snippet = ""
+            html_text = ""
             try:
-                raw_chunk = next(response.iter_content(4096), b"")
-                body_snippet = raw_chunk.decode("utf-8", errors="replace")
-                title_match = re.search(r"<title[^>]*>(.*?)</title>", body_snippet, re.I | re.S)
+                if "pdf" in (result["content_type"] or "").lower():
+                    raw_chunk = next(response.iter_content(4096), b"")
+                    body_snippet = raw_chunk.decode("utf-8", errors="replace")
+                else:
+                    chunks = []
+                    total = 0
+                    for chunk in response.iter_content(65536):
+                        chunks.append(chunk)
+                        total += len(chunk)
+                        if total >= 524288:
+                            break
+                    html_text = b"".join(chunks).decode("utf-8", errors="replace")
+                    body_snippet = html_text[:4096]
+                    result["html"] = html_text
+
+                title_match = re.search(r"<title[^>]*>(.*?)</title>", body_snippet or html_text, re.I | re.S)
                 if title_match:
                     result["page_title"] = title_match.group(1).strip()
             except Exception:

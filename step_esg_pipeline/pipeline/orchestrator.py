@@ -326,12 +326,14 @@ class PipelineOrchestrator:
                 )
 
         # 5. Playwright Browser Validation (for WAF / Challenges / JavaScript Viewers)
+        raw_html = check.get("html", "")
         needs_browser = (
             record.http_status in (403, 202)
-            or record.technical_status in ("ACCESS_BLOCKED", "SOFT_404")
+            or record.technical_status in ("ACCESS_BLOCKED", "SOFT_404", "ACCESS_DENIED")
             or record.access_status in ("ACCESS_DENIED", "ACCESS_CHALLENGE", "CLOUDFLARE_CHALLENGE", "BOT_PROTECTION", "BROKEN_SOFT_404")
-            or not record.pdf_url
             or "viewer" in final_url.lower()
+            or "pdf.js" in final_url.lower()
+            or (record.http_status == 200 and not record.pdf_url and len(raw_html.strip()) < 300)
         )
 
         pw_info: Optional[Dict[str, Any]] = None
@@ -443,10 +445,11 @@ class PipelineOrchestrator:
             doc_refs = VersionChainEngine.extract_references(text_sample)
             extracted_dates_detail = UniversalDateEngine.extract_dates(text_sample, url=final_url, jurisdiction=record.jurisdiction)
         else:
-            meta = self.metadata_extractor.extract(record.content_type, (pw_info or {}).get("html", ""), url=final_url, jurisdiction=record.jurisdiction)
-            record.page_title = record.page_title or meta.get("title", "")
+            page_html = (pw_info or {}).get("html", "") or check.get("html", "")
+            meta = self.metadata_extractor.extract(record.content_type, page_html, url=final_url, jurisdiction=record.jurisdiction)
+            record.page_title = record.page_title or meta.get("title", "") or check.get("page_title", "")
             record.source_organisation = record.source_organisation or meta.get("organisation", "")
-            text_sample = meta.get("text_sample", "") or (pw_info or {}).get("text", "")
+            text_sample = meta.get("text_sample", "") or (pw_info or {}).get("text", "") or re.sub(r"<[^>]+>", " ", page_html)[:4000]
             doc_refs = VersionChainEngine.extract_references(text_sample)
             extracted_dates_detail = UniversalDateEngine.extract_dates(text_sample, url=final_url, jurisdiction=record.jurisdiction)
 
@@ -598,4 +601,5 @@ class PipelineOrchestrator:
         record.updated_at = datetime.now(timezone.utc)
 
         self.repository.upsert_link(record)
+        print(f"[{record.country}] Audited: {raw_url[:65]} -> {record.final_decision} ({record.regulatory_status})", flush=True)
         return record

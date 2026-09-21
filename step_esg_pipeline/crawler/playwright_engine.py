@@ -351,77 +351,55 @@ class PlaywrightEngine:
         links = []
         seen = set()
 
-        # 1. <a> tags
+        # Fast in-browser DOM extraction via single page.evaluate call
         try:
-            a_elements = page.query_selector_all("a[href]")
-            for a in a_elements:
-                try:
-                    href = a.get_attribute("href") or ""
-                    if not href or href.startswith(("javascript:", "mailto:", "tel:", "#")):
-                        continue
-                    full_url = urljoin(base_url, href)
-                    norm_url = UrlNormalizer.normalize(full_url)
-                    if norm_url in seen:
-                        continue
-                    seen.add(norm_url)
-
-                    text = (a.inner_text() or "").strip()
-                    title = a.get_attribute("title") or ""
-                    aria = a.get_attribute("aria-label") or ""
-                    combined_label = f"{text} {title} {aria}".strip()
-
-                    links.append({
-                        "tag": "a",
-                        "url": full_url,
-                        "normalized_url": norm_url,
-                        "text": text,
-                        "label": combined_label,
-                        "is_pdf_hint": self._is_pdf_candidate(full_url, combined_label, "a"),
-                    })
-                except Exception:
+            raw_items = page.evaluate("""() => {
+                const results = [];
+                const links = document.querySelectorAll('a[href]');
+                for (let i = 0; i < links.length && i < 300; i++) {
+                    const a = links[i];
+                    const href = a.getAttribute('href') || '';
+                    if (!href || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('#')) continue;
+                    results.push({
+                        tag: 'a',
+                        href: href,
+                        text: (a.innerText || a.textContent || '').trim(),
+                        title: a.getAttribute('title') || '',
+                        aria: a.getAttribute('aria-label') || ''
+                    });
+                }
+                const btns = document.querySelectorAll("button, .btn, [role='button'], input[type='button']");
+                for (let i = 0; i < btns.length && i < 50; i++) {
+                    const btn = btns[i];
+                    results.push({
+                        tag: 'button',
+                        href: btn.getAttribute('data-url') || btn.getAttribute('data-href') || btn.getAttribute('data-file') || '',
+                        text: (btn.innerText || btn.textContent || '').trim(),
+                        title: btn.getAttribute('title') || '',
+                        aria: btn.getAttribute('aria-label') || ''
+                    });
+                }
+                return results;
+            }""")
+            for item in raw_items:
+                href = item.get("href", "")
+                if not href:
                     continue
-        except Exception:
-            pass
-
-        # 2. Buttons with data-url, onclick, or download wording
-        try:
-            btn_elements = page.query_selector_all("button, .btn, [role='button'], input[type='button']")
-            for btn in btn_elements:
-                try:
-                    btn_text = (btn.inner_text() or "").strip()
-                    data_url = (
-                        btn.get_attribute("data-url")
-                        or btn.get_attribute("data-href")
-                        or btn.get_attribute("data-file")
-                        or btn.get_attribute("data-link")
-                        or ""
-                    )
-                    onclick = btn.get_attribute("onclick") or ""
-                    target_url = ""
-
-                    if data_url:
-                        target_url = urljoin(base_url, data_url)
-                    elif onclick:
-                        match = re.search(r"(?:location\.href|open|navigate)\s*=\s*['\"]([^'\"]+)['\"]", onclick, re.I)
-                        if not match:
-                            match = re.search(r"window\.open\(['\"]([^'\"]+)['\"]", onclick, re.I)
-                        if match:
-                            target_url = urljoin(base_url, match.group(1))
-
-                    if target_url:
-                        norm = UrlNormalizer.normalize(target_url)
-                        if norm not in seen:
-                            seen.add(norm)
-                            links.append({
-                                "tag": "button",
-                                "url": target_url,
-                                "normalized_url": norm,
-                                "text": btn_text,
-                                "label": btn_text,
-                                "is_pdf_hint": self._is_pdf_candidate(target_url, btn_text, "button"),
-                            })
-                except Exception:
+                full_url = urljoin(base_url, href)
+                norm_url = UrlNormalizer.normalize(full_url)
+                if norm_url in seen:
                     continue
+                seen.add(norm_url)
+                text = item.get("text", "")
+                combined_label = f"{text} {item.get('title', '')} {item.get('aria', '')}".strip()
+                links.append({
+                    "tag": item.get("tag", "a"),
+                    "url": full_url,
+                    "normalized_url": norm_url,
+                    "text": text,
+                    "label": combined_label,
+                    "is_pdf_hint": self._is_pdf_candidate(full_url, combined_label, item.get("tag", "a")),
+                })
         except Exception:
             pass
 

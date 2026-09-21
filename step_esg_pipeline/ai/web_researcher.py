@@ -90,9 +90,10 @@ Return ONLY a valid JSON object matching this schema:
             "search_queries": [],
         }
 
-        # Try Gemini or LLM call if available
-        api_key = os.getenv("GEMINI_API_KEY")
-        if api_key:
+        # Try Gemini or LLM call if available and key looks like a valid Google AI Studio API key
+        api_key = os.getenv("GEMINI_API_KEY", "").strip()
+        is_gemini_key = bool(api_key and (api_key.startswith("AIzaSy") or (len(api_key) >= 38 and not api_key.startswith("AQ."))))
+        if is_gemini_key:
             try:
                 # Try google.genai first, then google.generativeai
                 response_text = ""
@@ -100,7 +101,7 @@ Return ONLY a valid JSON object matching this schema:
                     from google import genai
                     client = genai.Client(api_key=api_key)
                     resp = client.models.generate_content(
-                        model="gemini-2.5-flash",
+                        model="gemini-2.0-flash",
                         contents=prompt,
                     )
                     response_text = resp.text
@@ -108,7 +109,7 @@ Return ONLY a valid JSON object matching this schema:
                     import google.generativeai as genai_legacy
                     genai_legacy.configure(api_key=api_key)
                     model = genai_legacy.GenerativeModel("gemini-1.5-flash")
-                    resp = model.generate_content(prompt)
+                    resp = model.generate_content(prompt, request_options={"timeout": 10})
                     response_text = resp.text
 
                 if response_text:
