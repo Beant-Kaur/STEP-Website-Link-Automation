@@ -82,7 +82,10 @@ class UrlChecker:
                 return "ACCESS_CHALLENGE", "Security challenge page served with HTTP 200."
             
             # Stage 3: Soft-404 / Page Not Found Detection
-            combined_check = f"{title_lower} {body_lower[:1500]}"
+            # Strip script and style tags to prevent false positives from client-side JS error handlers
+            body_clean = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", body_snippet, flags=re.DOTALL | re.I)
+            body_clean_lower = body_clean.lower()
+            combined_check = f"{title_lower} {body_clean_lower[:1500]}"
             for pat in self.SOFT_404_PATTERNS:
                 if re.search(pat, combined_check, re.I):
                     return "BROKEN_SOFT_404", "Soft-404: Page returned HTTP 200 but content indicates page not found or unavailable."

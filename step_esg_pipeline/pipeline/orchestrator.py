@@ -583,8 +583,8 @@ class PipelineOrchestrator:
         ai_result = self.ai_evaluator.evaluate(record, metadata)
 
         needs_replacement = (
-            record.technical_status in ("BROKEN", "HTTP_404", "SOFT_404", "ACCESS_BLOCKED", "BOT_PROTECTION", "ACCESS_RESTRICTED", "HOMEPAGE_REDIRECT")
-            or record.access_status in ("ACCESS_DENIED", "CLOUDFLARE_CHALLENGE", "BOT_PROTECTION")
+            record.technical_status in ("BROKEN", "HTTP_404", "SOFT_404", "ACCESS_BLOCKED", "BOT_PROTECTION", "ACCESS_RESTRICTED", "HOMEPAGE_REDIRECT", "CONNECTION_ERROR")
+            or record.access_status in ("ACCESS_DENIED", "CLOUDFLARE_CHALLENGE", "BOT_PROTECTION", "CONNECTION_ERROR")
             or "TIER_3" in record.authority_status
             or record.regulatory_status in ("SUPERSEDED", "REPEALED", "AMENDED", "CONSULTATION")
         )

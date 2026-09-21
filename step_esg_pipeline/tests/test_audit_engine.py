@@ -386,3 +386,67 @@ class TestAuditEngineRequiredCases:
         for title in test_titles:
             is_match = any(re.search(pat, title, re.I) for pat in TECHNICAL_TITLE_PATTERNS)
             assert is_match, f"Failed to reject technical title: {title}"
+
+    def test_18_nigeria_cac_and_cbn_blocked_with_verified_replacement(self):
+        """Scenario 18: CAC CAMA 2020 and CBN NSBP 2012 links blocked by Cloudflare resolve to verified official replacements."""
+        from ai.replacement_finder import ReplacementFinder
+
+        finder = ReplacementFinder()
+
+        # CAC CAMA 2020
+        cac_rec = LinkRecord(
+            link_id="test_cac",
+            jurisdiction="Nigeria",
+            topic="Company Law & Governance",
+            step_section="ESG Legislative Landscape",
+            step_description="Corporate Affairs Commission (CAC) – Companies and Allied Matters Act (CAMA) 2020",
+            original_url="https://www.cac.gov.ng/wp-content/uploads/2020/12/CAMA-NOTE-BOOK-FULL-VERSION.pdf",
+            http_status=403,
+            technical_status="BOT_PROTECTION",
+            access_status="CLOUDFLARE_CHALLENGE",
+            technical_page_title="Just a moment...",
+            page_title="Companies and Allied Matters Act (CAMA) 2020",
+            source_organisation="Corporate Affairs Commission (CAC)",
+            authority_status="TIER_1_OFFICIAL_REGULATOR",
+        )
+        url, title, reason = finder.find_replacement(cac_rec, {})
+        assert url == "https://icrp.cac.gov.ng/cama"
+        assert "CAC" in title or "CAMA" in title
+
+        cac_rec.replacement_url = url
+        cac_rec.replacement_title = title
+        cac_rec.replacement_verified = True
+        cac_rec.candidate_status = "REPLACEMENT_VERIFIED"
+        cac_rec.recommended_action = "ACCESS_DENIED_REPLACEMENT_FOUND"
+
+        assert DecisionEngine().decide_canonical(cac_rec) == "REPLACE"
+        assert DecisionEngine().decide(cac_rec, canonical=False) == "ACCESS_DENIED_REPLACEMENT_FOUND"
+
+        # CBN NSBP 2012
+        cbn_rec = LinkRecord(
+            link_id="test_cbn",
+            jurisdiction="Nigeria",
+            topic="Banking Principles",
+            step_section="ESG Legislative Landscape",
+            step_description="Central Bank of Nigeria – Nigerian Sustainable Banking Principles (NSBP) 2012",
+            original_url="https://www.cbn.gov.ng/out/2012/ccd/circular-nsbp.pdf",
+            http_status=403,
+            technical_status="BOT_PROTECTION",
+            access_status="CLOUDFLARE_CHALLENGE",
+            technical_page_title="Just a moment...",
+            page_title="Nigerian Sustainable Banking Principles (NSBP) 2012",
+            source_organisation="Central Bank of Nigeria (CBN)",
+            authority_status="TIER_1_OFFICIAL_REGULATOR",
+        )
+        url_cbn, title_cbn, reason_cbn = finder.find_replacement(cbn_rec, {})
+        assert url_cbn == "https://www.cbn.gov.ng/documents/circulars.html"
+        assert "CBN" in title_cbn or "NSBP" in title_cbn
+
+        cbn_rec.replacement_url = url_cbn
+        cbn_rec.replacement_title = title_cbn
+        cbn_rec.replacement_verified = True
+        cbn_rec.candidate_status = "REPLACEMENT_VERIFIED"
+        cbn_rec.recommended_action = "ACCESS_DENIED_REPLACEMENT_FOUND"
+
+        assert DecisionEngine().decide_canonical(cbn_rec) == "REPLACE"
+        assert DecisionEngine().decide(cbn_rec, canonical=False) == "ACCESS_DENIED_REPLACEMENT_FOUND"
