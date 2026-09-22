@@ -170,10 +170,29 @@ class ReplacementFinder:
         evaluator: Optional[AiEvaluator] = None,
         url_checker: Optional[Any] = None,
         web_researcher: Optional[Any] = None,
+        browser_fetch: Optional[Any] = None,
     ):
         self.evaluator = evaluator or AiEvaluator()
         self.url_checker = url_checker
         self.web_researcher = web_researcher or WebResearcher()
+        # Optional callable(url) -> dict (like PlaywrightEngine.inspect_url) used to
+        # re-verify candidates that requests-based checking sees as challenge-blocked
+        # (e.g. eur-lex returns 202 to requests but renders fine in a browser).
+        self.browser_fetch = browser_fetch
+
+    def _browser_confirms_accessible(self, url: str) -> bool:
+        """Use the browser fallback to confirm a challenge-blocked candidate actually
+        renders real content. Returns False if no browser is available or it stays blocked."""
+        if not self.browser_fetch:
+            return False
+        try:
+            info = self.browser_fetch(url) or {}
+        except Exception:
+            return False
+        if info.get("is_access_denied") or info.get("is_challenge_page"):
+            return False
+        # Real content rendered, or an underlying PDF was discovered.
+        return len(info.get("text", "") or "") > 300 or bool(info.get("discovered_pdf_urls"))
 
     @staticmethod
     def is_homepage(url: str) -> bool:
@@ -227,7 +246,12 @@ class ReplacementFinder:
                 if chk_status and chk_status >= 400:
                     return ValidationResult(False, "REJECTED", f"Technical validation failed: HTTP {chk_status}.", audit_details)
                 if chk_tech in ("ACCESS_RESTRICTED", "SERVER_ERROR", "TIMEOUT", "BROKEN"):
-                    return ValidationResult(False, "REJECTED", f"Technical validation failed: {chk_tech}.", audit_details)
+                    # requests-based check saw a challenge/restriction. Before rejecting,
+                    # confirm with a real browser (e.g. eur-lex serves 202 to requests but
+                    # renders full content in a browser).
+                    if not self._browser_confirms_accessible(candidate_url):
+                        return ValidationResult(False, "REJECTED", f"Technical validation failed: {chk_tech}.", audit_details)
+                    audit_details["browser_verified"] = True
                 audit_details["http_verified"] = True
             except Exception as e:
                 return ValidationResult(False, "REJECTED", f"Technical validation error: {str(e)}", audit_details)

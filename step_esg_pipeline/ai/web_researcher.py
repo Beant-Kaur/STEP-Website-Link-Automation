@@ -67,67 +67,62 @@ Return ONLY a valid JSON object matching this schema:
         references: List[str] = None,
         text_sample: str = "",
     ) -> Dict[str, Any]:
-        """Conducts AI-assisted research to formulate official replacement hypotheses."""
-        prompt = self.RESEARCH_PROMPT_TEMPLATE.format(
-            url=url,
-            title=title or "Unknown",
-            doc_number=doc_number or "None specified",
-            authority=authority or "Official Regulator",
-            jurisdiction=jurisdiction or "Global / National",
-            description=description or "",
-            dates=dates or "",
-            references=", ".join(references or []) if references else "None detected",
-            text_sample=(text_sample or "")[:2500],
-        )
+        """Conducts AI-assisted research to formulate official replacement hypotheses.
 
-        result: Dict[str, Any] = {
-            "candidate_url": "",
-            "candidate_pdf_url": "",
-            "candidate_title": "",
-            "issuing_authority": authority,
-            "regulatory_relationship": "",
-            "reasoning": "",
-            "search_queries": [],
+        Delegates to the configured provider's grounded `research_source`. The provider
+        is the single source of truth for which model/key/grounding is used, so test
+        (Gemini) and production (Claude) route through the same path.
+        """
+        context = {
+            "url": url,
+            "title": title,
+            "doc_number": doc_number,
+            "authority": authority,
+            "jurisdiction": jurisdiction,
+            "description": description,
+            "dates": dates,
+            "references": references or [],
+            "text_sample": text_sample,
         }
 
-        # Try Gemini or LLM call if available
-        api_key = os.getenv("GEMINI_API_KEY")
-        if api_key:
+        # Grounded research via the configured provider (Gemini/Claude/OpenAI).
+        if self.ai_provider is not None:
             try:
-                # Try google.genai first, then google.generativeai
-                response_text = ""
-                try:
-                    from google import genai
-                    client = genai.Client(api_key=api_key)
-                    resp = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=prompt,
-                    )
-                    response_text = resp.text
-                except Exception:
-                    import google.generativeai as genai_legacy
-                    genai_legacy.configure(api_key=api_key)
-                    model = genai_legacy.GenerativeModel("gemini-1.5-flash")
-                    resp = model.generate_content(prompt)
-                    response_text = resp.text
-
-                if response_text:
-                    clean_json = self._extract_json(response_text)
-                    if clean_json:
-                        result.update(clean_json)
-                        return result
+                res = self.ai_provider.research_source(context)
+                if res and res.get("candidate_url"):
+                    return res
+                # Provider returned no candidate; keep its search_queries for the fallback below.
+                if res:
+                    return self._with_heuristic_queries(res, title, description, doc_number, authority)
             except Exception as exc:
-                logger.debug(f"AI web research call error: {exc}")
+                logger.debug(f"Provider research_source error: {exc}")
 
-        # Fallback heuristic queries if AI is unavailable or fails
-        clean_title = re.sub(r"[^\w\s]", " ", title or description).strip()
-        queries = []
-        if doc_number:
-            queries.append(f"{authority} {doc_number} circular pdf")
-        if clean_title:
-            queries.append(f"{authority} {clean_title} official")
-        result["search_queries"] = queries[:2]
+        # No provider (mock/unconfigured): heuristic search-query hints only.
+        return self._with_heuristic_queries(
+            {
+                "candidate_url": "",
+                "candidate_pdf_url": "",
+                "candidate_title": "",
+                "issuing_authority": authority,
+                "regulatory_relationship": "",
+                "reasoning": "",
+                "search_queries": [],
+            },
+            title, description, doc_number, authority,
+        )
 
+    @staticmethod
+    def _with_heuristic_queries(result: Dict[str, Any], title: str, description: str,
+                                doc_number: str, authority: str) -> Dict[str, Any]:
+        """Populate search_queries heuristically only if the provider didn't supply any."""
+        if not result.get("search_queries"):
+            clean_title = re.sub(r"[^\w\s]", " ", title or description).strip()
+            queries = []
+            if doc_number:
+                queries.append(f"{authority} {doc_number} circular pdf")
+            if clean_title:
+                queries.append(f"{authority} {clean_title} official")
+            result["search_queries"] = queries[:2]
         return result
 
     @staticmethod

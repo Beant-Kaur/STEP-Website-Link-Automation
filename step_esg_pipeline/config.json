@@ -14,13 +14,16 @@
     "day_of_week": "sun"
   },
   "ai": {
-    "provider": "gemini",
+    "provider": "agentrouter",
     "anthropic_api_key": "",
     "openai_api_key": "",
     "gemini_api_key": "",
+    "agentrouter_api_key": "",
     "openai_model": "gpt-4o-mini",
     "claude_model": "claude-3-5-haiku-20241022",
-    "gemini_model": "gemini-flash-latest",
+    "gemini_model": "gemini-3.1-flash-lite",
+    "agentrouter_model": "deepseek-v4-flash",
+    "agentrouter_base_url": "https://agentrouter.org/v1",
     "confidence_threshold": 0.8
   }
 }

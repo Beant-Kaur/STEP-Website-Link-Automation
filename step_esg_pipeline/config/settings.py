@@ -75,6 +75,9 @@ class AppConfig:
         ai["anthropic_api_key"] = os.getenv("ANTHROPIC_API_KEY", ai.get("anthropic_api_key", ""))
         ai["openai_api_key"] = os.getenv("OPENAI_API_KEY", ai.get("openai_api_key", ""))
         ai["gemini_api_key"] = os.getenv("GEMINI_API_KEY", ai.get("gemini_api_key", ""))
+        ai["agentrouter_api_key"] = os.getenv("AGENTROUTER_API_KEY", ai.get("agentrouter_api_key", ""))
+        if os.getenv("STEP_AI_PROVIDER"):
+            ai["provider"] = os.getenv("STEP_AI_PROVIDER")
 
     def save(self, updated: dict[str, Any]) -> None:
         self._config = _deep_merge(self._config, updated)

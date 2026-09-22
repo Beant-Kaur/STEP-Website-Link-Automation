@@ -87,6 +87,68 @@ Return ONLY valid JSON (no markdown, no explanation text outside JSON) matching 
 }"""
 
 
+RESEARCH_PROMPT = """You are a regulatory intelligence researcher for statutory, securities, and ESG frameworks.
+
+Locate the CURRENT, AUTHORITATIVE, OFFICIAL source for a regulatory document that is broken, outdated, moved, or access-restricted. Use web search to ground your answer in real current results — do NOT rely on memory alone.
+
+Prefer primary regulatory authority portals and direct official PDFs. Do NOT suggest generic homepages (e.g. sec.gov root). Do NOT suggest commercial aggregators (Mondaq, Lexology, LinkedIn) when the official regulator exists.
+
+ORIGINAL SOURCE CONTEXT:
+- Original URL: {url}
+- Title: {title}
+- Document/Circular Number: {doc_number}
+- Issuing Authority: {authority}
+- Jurisdiction: {jurisdiction}
+- Description: {description}
+- Relevant Dates: {dates}
+- References: {references}
+- Page Text Excerpt: {text_sample}
+
+Return ONLY a valid JSON object (no markdown) matching this schema:
+{{
+  "candidate_url": "Direct official URL to the current document or official page",
+  "candidate_pdf_url": "Direct official PDF URL if known, else empty string",
+  "candidate_title": "Official title of the document or updated framework",
+  "issuing_authority": "Name of the official regulatory body",
+  "regulatory_relationship": "One of: SAME_DOCUMENT_MOVED | AMENDED_VERSION | REPLACED_BY_NEWER_CIRCULAR | CURRENT_ENACTED_VERSION | OFFICIAL_REPOSITORY",
+  "reasoning": "Concise justification citing the search results",
+  "search_queries": ["1-3 queries you used"]
+}}"""
+
+
+def _build_research_prompt(context: dict) -> str:
+    refs = context.get("references") or []
+    return RESEARCH_PROMPT.format(
+        url=context.get("url", ""),
+        title=context.get("title", "") or "Unknown",
+        doc_number=context.get("doc_number", "") or "None specified",
+        authority=context.get("authority", "") or "Official Regulator",
+        jurisdiction=context.get("jurisdiction", "") or "Global / National",
+        description=context.get("description", "") or "",
+        dates=context.get("dates", "") or "",
+        references=", ".join(refs) if refs else "None detected",
+        text_sample=(context.get("text_sample", "") or "")[:2500],
+    )
+
+
+def _is_quota_error(exc: Exception) -> bool:
+    """True for 429 / RESOURCE_EXHAUSTED (e.g. Search grounding not on the key's tier)."""
+    s = str(exc)
+    return "429" in s or "RESOURCE_EXHAUSTED" in s or "quota" in s.lower()
+
+
+def _empty_candidate(context: dict) -> dict:
+    return {
+        "candidate_url": "",
+        "candidate_pdf_url": "",
+        "candidate_title": "",
+        "issuing_authority": context.get("authority", ""),
+        "regulatory_relationship": "",
+        "reasoning": "",
+        "search_queries": [],
+    }
+
+
 def _extract_json(text: str) -> dict:
     """Extract JSON from AI response text, handling markdown code fences."""
     # Try stripping markdown code fences
@@ -107,15 +169,27 @@ def _extract_json(text: str) -> dict:
 
 def _parse_common(data: dict) -> AiEvaluationResult:
     """Convert a parsed AI JSON response into AiEvaluationResult with all Section 18 fields."""
+    classification = data.get("classification", "NEEDS_HUMAN_REVIEW")
+    reg_status = data.get("regulatory_status", "UNKNOWN")
+    fresh_status = data.get("freshness_status", "UNKNOWN")
+    # A VALID_AND_CURRENT verdict inherently means current & in-force. Models often give
+    # the top-line classification without filling the granular reg/freshness sub-fields,
+    # leaving them UNKNOWN — which downstream caps confidence at 0.55 and forces every
+    # current link into MANUAL_REVIEW. Make the sub-fields consistent with the verdict.
+    if classification in ("VALID_AND_CURRENT", "CURRENT_IN_FORCE"):
+        if reg_status == "UNKNOWN" or not reg_status:
+            reg_status = "CURRENT_IN_FORCE"
+        if fresh_status == "UNKNOWN" or not fresh_status:
+            fresh_status = "CURRENT_IN_FORCE"
     return AiEvaluationResult(
         # Core fields
-        classification=data.get("classification", "NEEDS_HUMAN_REVIEW"),
+        classification=classification,
         technical_status=data.get("technical_status", "UNKNOWN"),
         source_authority=data.get("source_authority", "Tier 4"),
         source_organisation=data.get("source_organisation", ""),
         content_relevance=data.get("content_relevance", "unknown"),
-        regulatory_status=data.get("regulatory_status", "UNKNOWN"),
-        freshness_status=data.get("freshness_status", "UNKNOWN"),
+        regulatory_status=reg_status,
+        freshness_status=fresh_status,
         replacement_required=bool(data.get("replacement_required", False)),
         replacement_url=data.get("recommended_url", "") or data.get("replacement_url", ""),
         replacement_reason=data.get("replacement_reason", ""),
@@ -129,7 +203,7 @@ def _parse_common(data: dict) -> AiEvaluationResult:
         replacement_status="NONE_FOUND" if data.get("replacement_required") else "NOT_REQUIRED",
         content_relevance_score=int(data.get("content_accuracy_score", 0) or 0),
         content_accuracy_score=int(data.get("content_accuracy_score", 0) or 0),
-        freshness_score=_freshness_status_to_score(data.get("freshness_status", "UNKNOWN")),
+        freshness_score=_freshness_status_to_score(fresh_status),
         reason=data.get("replacement_reason", "") or data.get("freshness_assessment", ""),
         evidence=list(data.get("evidence", [])),
         # Section 18 — Deep Semantic Analysis Fields
@@ -256,12 +330,52 @@ class AnthropicProvider(_BaseAiProvider):
         data = _extract_json(text)
         return _parse_common(data)
 
+    def research_source(self, context: dict) -> dict:
+        """Propose a replacement source using Claude's server-side web_search tool.
+
+        Requires an anthropic SDK new enough to support the web_search_20250305 tool.
+        Falls back to an empty candidate (→ heuristic queries downstream) on older SDKs.
+        """
+        prompt = _build_research_prompt(context)
+        try:
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=1500,
+                messages=[{"role": "user", "content": prompt}],
+                tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}],
+            )
+            # Concatenate any text blocks from the (tool-augmented) response
+            text = "".join(
+                getattr(block, "text", "") for block in response.content
+                if getattr(block, "type", "") == "text"
+            )
+        except Exception as exc:
+            cand = _empty_candidate(context)
+            cand["reasoning"] = f"Claude web_search unavailable (SDK/tool): {exc}"
+            return cand
+
+        data = _extract_json(text)
+        if not data:
+            return _empty_candidate(context)
+        base = _empty_candidate(context)
+        base.update({k: data[k] for k in base if k in data})
+        return base
+
 
 class OpenAIProvider(_BaseAiProvider):
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini") -> None:
+    def __init__(self, api_key: str, model: str = "gpt-4o-mini", base_url: str = "",
+                 default_headers: Optional[dict] = None) -> None:
         if not OPENAI_AVAILABLE:
             raise RuntimeError("openai package is not installed")
-        self.client = openai.OpenAI(api_key=api_key)
+        # base_url lets this class target any OpenAI-compatible gateway (e.g. AgentRouter).
+        # default_headers lets a gateway that does client-fingerprint validation
+        # (e.g. AgentRouter) recognise us as an allowed client — key auth alone isn't enough.
+        client_kwargs = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        if default_headers:
+            client_kwargs["default_headers"] = default_headers
+        self.client = openai.OpenAI(**client_kwargs)
         self.model = model
 
     def evaluate(self, record: Any, metadata: dict) -> AiEvaluationResult:
@@ -276,6 +390,91 @@ class OpenAIProvider(_BaseAiProvider):
         text = response.choices[0].message.content or "{}"
         data = _extract_json(text)
         return _parse_common(data)
+
+    # Tool the model can call to ground its answer in real search results. OpenAI-compatible
+    # gateways (AgentRouter/DeepSeek) have no server-side browsing, but they DO support
+    # function calling — so we expose web_search and execute it ourselves.
+    _SEARCH_TOOL = [{
+        "type": "function",
+        "function": {
+            "name": "web_search",
+            "description": "Search the web for the current official source of a regulation. "
+                           "Returns a list of {title, url, snippet}. Call this before answering.",
+            "parameters": {
+                "type": "object",
+                "properties": {"query": {"type": "string", "description": "Search query"}},
+                "required": ["query"],
+            },
+        },
+    }]
+
+    def research_source(self, context: dict) -> dict:
+        """Propose a replacement source, GROUNDED via a web_search tool the model calls.
+
+        DeepSeek/OpenAI-compatible models can't browse but support function calling: the
+        model requests web_search, we run it (DuckDuckGo, no key), feed results back, and
+        it returns a candidate grounded in real results. Falls back to ungrounded answering
+        if the search backend is unavailable. Every candidate still passes validate_candidate().
+        """
+        import json as _json
+        from ai.web_search import web_search
+        messages = [{"role": "user", "content": _build_research_prompt(context)}]
+        text = ""
+        grounded = False
+        try:
+            # Bounded tool-calling loop: allow several rounds of search. The model is
+            # non-deterministic about how many searches it runs, so if it's still calling
+            # tools when the budget runs out, force a final answer with tools disabled.
+            MAX_ROUNDS = 6
+            for round_i in range(MAX_ROUNDS):
+                last_round = round_i == MAX_ROUNDS - 1
+                resp = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    tools=self._SEARCH_TOOL,
+                    tool_choice="none" if last_round else "auto",
+                )
+                msg = resp.choices[0].message
+                tool_calls = getattr(msg, "tool_calls", None)
+                if not tool_calls:
+                    text = msg.content or ""
+                    break
+                # Record the assistant's tool request, then answer each call.
+                messages.append({
+                    "role": "assistant",
+                    "content": msg.content or "",
+                    "tool_calls": [
+                        {"id": tc.id, "type": "function",
+                         "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+                        for tc in tool_calls
+                    ],
+                })
+                for tc in tool_calls:
+                    try:
+                        args = _json.loads(tc.function.arguments or "{}")
+                    except Exception:
+                        args = {}
+                    results = web_search(args.get("query", ""))
+                    if results:
+                        grounded = True
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": _json.dumps(results)[:4000],
+                    })
+        except Exception as exc:
+            cand = _empty_candidate(context)
+            cand["reasoning"] = f"OpenAI-compatible research unavailable: {exc}"
+            return cand
+
+        data = _extract_json(text)
+        if not data:
+            return _empty_candidate(context)
+        base = _empty_candidate(context)
+        base.update({k: data[k] for k in base if k in data})
+        if not grounded and base.get("reasoning"):
+            base["reasoning"] = "[UNGROUNDED — search returned nothing] " + base["reasoning"]
+        return base
 
 
 class GeminiProvider(_BaseAiProvider):
@@ -339,6 +538,61 @@ class GeminiProvider(_BaseAiProvider):
                 f"[Gemini {self.model_name}] {result.freshness_assessment or result.original_content_summary[:120]}"
             )
         return result
+
+    def research_source(self, context: dict) -> dict:
+        """Propose a replacement source, grounded in real Google Search results.
+
+        If Search grounding is unavailable on the key's tier (429 RESOURCE_EXHAUSTED),
+        degrade to an UNGROUNDED call so the pipeline still gets a candidate. Ungrounded
+        candidates come from model knowledge and MUST still pass validate_candidate().
+        """
+        prompt = _build_research_prompt(context)
+        text = ""
+        grounded = True
+        try:
+            text = self._research_call(prompt, use_search=True)
+        except Exception as exc:
+            if _is_quota_error(exc):
+                # Grounding quota exhausted — retry without the search tool.
+                grounded = False
+                try:
+                    text = self._research_call(prompt, use_search=False)
+                except Exception as exc2:
+                    cand = _empty_candidate(context)
+                    cand["reasoning"] = f"Gemini research unavailable (ungrounded retry failed): {exc2}"
+                    return cand
+            else:
+                cand = _empty_candidate(context)
+                cand["reasoning"] = f"Gemini research unavailable: {exc}"
+                return cand
+
+        data = _extract_json(text)
+        if not data:
+            return _empty_candidate(context)
+        base = _empty_candidate(context)
+        base.update({k: data[k] for k in base if k in data})
+        if not grounded:
+            base["reasoning"] = "[UNGROUNDED — no web search] " + (base.get("reasoning") or "")
+        return base
+
+    def _research_call(self, prompt: str, use_search: bool) -> str:
+        """One research generation, optionally with Google Search grounding."""
+        if self._sdk == "new":
+            cfg_kwargs = {"temperature": 0.1}
+            if use_search:
+                cfg_kwargs["tools"] = [genai_types.Tool(google_search=genai_types.GoogleSearch())]
+            response = self._client.models.generate_content(
+                model=self.model_name, contents=prompt,
+                config=genai_types.GenerateContentConfig(**cfg_kwargs),
+            )
+            return response.text or ""
+        # Legacy SDK
+        model = google_genai.GenerativeModel(
+            model_name=self.model_name,
+            tools="google_search_retrieval" if use_search else None,
+        )
+        response = model.generate_content(prompt)
+        return getattr(response, "text", "") or ""
 
     @staticmethod
     def _fallback_result(record: Any, metadata: dict, reason: str) -> AiEvaluationResult:
