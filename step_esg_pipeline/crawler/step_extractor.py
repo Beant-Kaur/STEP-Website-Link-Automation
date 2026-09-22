@@ -144,69 +144,76 @@ class StepExtractor:
 
             collapse = block.find("div", class_=lambda c: c and "accordion-collapse" in c) or block
 
-            # Iterate through contents preserving document hierarchy
+            # Walk bold headings and links in DOCUMENT ORDER. We iterate leaf nodes
+            # (<strong>/<b> and <a>) rather than container elements: sweeping a wrapper
+            # <div> would grab all its descendant bolds and links at once, latching the
+            # LAST heading onto every link in the block (the title-bleed bug). Streaming
+            # leaf nodes means each link's title is the nearest heading that precedes it.
             current_doc_title = ""
 
-            # Check both paragraphs and list items
-            elements = collapse.find_all(["p", "li", "div"])
-
-            for el in elements:
-                # 1. If element has a bold title, it defines the document name
-                bolds = el.find_all(["strong", "b"])
-                for b in bolds:
-                    bt = b.get_text(strip=True)
-                    # Filter out generic labels like 'Link:', 'Disclaimer:', etc.
+            for node in collapse.find_all(["strong", "b", "a"]):
+                if node.name in ("strong", "b"):
+                    bt = node.get_text(strip=True)
+                    # Filter generic labels like 'Link:' / 'Disclaimer:' so they don't
+                    # overwrite the real document heading.
                     clean_bt = re.sub(r"^(Link\s*:\s*|Link\s*)", "", bt, flags=re.I).strip()
                     if len(clean_bt) > 4 and not clean_bt.lower().startswith("disclaimer"):
                         current_doc_title = clean_bt
+                    continue
 
-                # 2. Extract links in this element
-                a_tags = el.find_all("a", href=True)
-                for a in a_tags:
-                    href = a.get("href", "").strip()
-                    if not href or href.startswith(("javascript:", "mailto:", "#")):
-                        continue
+                # node is an <a>
+                href = node.get("href", "").strip()
+                if not href or href.startswith(("javascript:", "mailto:", "#")):
+                    continue
 
-                    full_url = urljoin(base_url, href)
-                    cleaned_url = self._clean_url(full_url)
-                    if cleaned_url in seen:
-                        continue
-                    seen.add(cleaned_url)
+                full_url = urljoin(base_url, href)
+                cleaned_url = self._clean_url(full_url)
+                if cleaned_url in seen:
+                    continue
+                seen.add(cleaned_url)
 
-                    anchor_text = a.get_text(strip=True)
-                    clean_anchor = re.sub(r"^(Link\s*:\s*|Link\s*)", "", anchor_text, flags=re.I).strip()
+                anchor_text = node.get_text(strip=True)
+                clean_anchor = re.sub(r"^(Link\s*:\s*|Link\s*)", "", anchor_text, flags=re.I).strip()
 
-                    # Determine best document title
-                    if current_doc_title:
-                        reg_title = current_doc_title
-                    elif clean_anchor and len(clean_anchor) > 4 and not clean_anchor.lower().startswith("http"):
-                        reg_title = clean_anchor
-                    else:
-                        parent_text = el.get_text(strip=True)
-                        clean_parent = re.sub(r"^(Link\s*:\s*|Link\s*)", "", parent_text, flags=re.I).strip()
-                        reg_title = clean_parent[:120] if clean_parent else cleaned_url
+                # Prefer a SPECIFIC per-link anchor (e.g. "Regulation (EU) 2019/2088 (SFDR)");
+                # otherwise use the nearest preceding heading (now reliable, no bleed);
+                # otherwise fall back to the link's own paragraph text.
+                generic_anchor = clean_anchor.lower() in (
+                    "link", "here", "click here", "pdf", "download", "view",
+                    "read more", "view document", "download pdf", "official",
+                )
+                is_specific_anchor = (
+                    clean_anchor and len(clean_anchor) > 4
+                    and not clean_anchor.lower().startswith("http")
+                    and not generic_anchor
+                )
+                if is_specific_anchor:
+                    reg_title = clean_anchor
+                elif current_doc_title:
+                    reg_title = current_doc_title
+                else:
+                    parent = node.find_parent(["p", "li", "div"])
+                    parent_text = parent.get_text(strip=True) if parent else ""
+                    clean_parent = re.sub(r"^(Link\s*:\s*|Link\s*)", "", parent_text, flags=re.I).strip()
+                    reg_title = clean_parent[:120] if clean_parent else cleaned_url
 
-                    step_pos += 1
-                    links.append({
-                        "section": section_name,
-                        "country": country,
-                        "jurisdiction": country,
-                        "country_confidence": country_conf,
-                        "country_evidence": country_ev,
-                        "link_text": reg_title,
-                        "text": reg_title,
-                        "source_url": cleaned_url,
-                        "url": cleaned_url,
-                        "anchor_text": anchor_text,
-                        "title": reg_title,
-                        "step_position": step_pos,
-                        "step_description": reg_title,
-                        "section_heading": country,
-                    })
-
-                    # If this was a dedicated item in a list, reset current_doc_title
-                    if el.name == "li":
-                        current_doc_title = ""
+                step_pos += 1
+                links.append({
+                    "section": section_name,
+                    "country": country,
+                    "jurisdiction": country,
+                    "country_confidence": country_conf,
+                    "country_evidence": country_ev,
+                    "link_text": reg_title,
+                    "text": reg_title,
+                    "source_url": cleaned_url,
+                    "url": cleaned_url,
+                    "anchor_text": anchor_text,
+                    "title": reg_title,
+                    "step_position": step_pos,
+                    "step_description": reg_title,
+                    "section_heading": country,
+                })
 
         return links
 
