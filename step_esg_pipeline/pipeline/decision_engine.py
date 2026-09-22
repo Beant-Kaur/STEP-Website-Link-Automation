@@ -166,7 +166,21 @@ class DecisionEngine:
             or "EXCHANGE" in auth_status
             or record.source_authority_tier in ("Tier 1", "Tier 2")
         )
-        is_in_force = reg_status in ("CURRENT_IN_FORCE", "LEGALLY_BINDING_IN_FORCE", "HISTORICAL_FOUNDATIONAL")
+        # A link is "in force" when its regulatory status affirmatively says so, OR
+        # when the model's holistic classification is VALID_AND_CURRENT and nothing
+        # affirmatively marks it outdated. A bare UNKNOWN sub-field (common when the
+        # model gives a top-line verdict without filling every field) should not by
+        # itself force MANUAL_REVIEW on an otherwise-current, accessible official link.
+        NOT_CURRENT = ("COMPLETELY_SUPERSEDED", "REPEALED_WITHDRAWN", "OBSOLETE",
+                       "SUPERSEDED", "REPEALED", "AMENDED", "EXPIRED",
+                       "STAYED_PENDING_LITIGATION", "DISBANDED_TRANSITIONED", "PARTIALLY_SUPERSEDED")
+        affirmatively_in_force = reg_status in ("CURRENT_IN_FORCE", "LEGALLY_BINDING_IN_FORCE", "HISTORICAL_FOUNDATIONAL")
+        classified_current = (
+            classification in ("VALID_AND_CURRENT", "CURRENT_IN_FORCE")
+            and reg_status not in NOT_CURRENT
+            and fresh_status not in NOT_CURRENT
+        )
+        is_in_force = affirmatively_in_force or classified_current
 
         # Also handle cases where authority_status is not yet populated
         if not auth_status:
@@ -176,7 +190,6 @@ class DecisionEngine:
             elif classification in ("VALID_AND_CURRENT", "CURRENT_IN_FORCE"):
                 is_authoritative = True
 
-        # HARD GATE: HTTP 200 + valid PDF without affirmative currentness remains UNKNOWN / MANUAL_REVIEW
         if is_accessible and not is_soft_404 and not is_wrong_dest:
             if is_authoritative and is_in_force and conf >= 0.60:
                 return "KEEP"
@@ -231,14 +244,22 @@ class DecisionEngine:
             return "REPLACE_WITH_OFFICIAL"
 
         # 3. Valid and current -> KEEP (Strict Rule Section 18)
-        # ONLY when: reachable (200), not soft-404, not homepage redirect, regulatory status active in-force
+        # Reachable (200), not soft-404, not homepage redirect, confident, and the
+        # holistic classification is VALID_AND_CURRENT. The granular reg/freshness
+        # fields only BLOCK keep when they affirmatively signal outdated/superseded —
+        # a bare UNKNOWN (common when the model gives a top-line verdict without
+        # filling every sub-field) does not force review on an otherwise-current link.
+        IN_FORCE = ("LEGALLY_BINDING_IN_FORCE", "CURRENT_IN_FORCE", "HISTORICAL_FOUNDATIONAL")
+        NOT_CURRENT = ("COMPLETELY_SUPERSEDED", "REPEALED_WITHDRAWN", "OBSOLETE",
+                       "SUPERSEDED", "REPEALED", "AMENDED", "EXPIRED",
+                       "STAYED_PENDING_LITIGATION", "DISBANDED_TRANSITIONED", "PARTIALLY_SUPERSEDED")
         if (
             classification in ("VALID_AND_CURRENT", "CURRENT_IN_FORCE")
             and http_status == 200
             and not is_soft_404
             and not is_wrong_dest
-            and reg_status in ("LEGALLY_BINDING_IN_FORCE", "CURRENT_IN_FORCE", "HISTORICAL_FOUNDATIONAL")
-            and fresh_status in ("CURRENT_IN_FORCE", "LEGALLY_BINDING_IN_FORCE", "HISTORICAL_FOUNDATIONAL")
+            and reg_status not in NOT_CURRENT
+            and fresh_status not in NOT_CURRENT
             and conf >= 0.60
         ):
             return "KEEP"
