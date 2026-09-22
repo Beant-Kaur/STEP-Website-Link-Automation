@@ -32,6 +32,14 @@ class UrlChecker:
             "Sec-Ch-Ua-Platform": '"Windows"',
         })
 
+    # Some official domains block generic browser UAs and require a descriptive,
+    # contactable User-Agent per their published access policy (e.g. SEC.gov).
+    DOMAIN_HEADER_OVERRIDES = {
+        "www.sec.gov": {"User-Agent": "STEP ESG Link Monitor admin@step.org"},
+        "sec.gov": {"User-Agent": "STEP ESG Link Monitor admin@step.org"},
+        "www.dol.gov": {"User-Agent": "STEP ESG Link Monitor admin@step.org"},
+    }
+
     SOFT_404_PATTERNS = [
         r"\b(404\s*-\s*page\s*not\s*found|page\s*not\s*found|page\s*doesn'?t\s*exist|page\s*does\s*not\s*exist)\b",
         r"\b(resource\s*not\s*found|content\s*not\s*available|content\s*unavailable|this\s*page\s*is\s*unavailable)\b",
@@ -113,11 +121,13 @@ class UrlChecker:
 
         start_time = time.perf_counter()
         try:
+            per_request_headers = self.DOMAIN_HEADER_OVERRIDES.get(urlparse(url).netloc.lower())
             response = self.session.get(
                 url,
                 timeout=self.timeout,
                 allow_redirects=True,
                 stream=True,
+                headers=per_request_headers,
             )
             elapsed_ms = round((time.perf_counter() - start_time) * 1000, 2)
             result["response_time_ms"] = elapsed_ms

@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
@@ -60,8 +61,20 @@ class PipelineOrchestrator:
         self.relevance_checker = RelevanceChecker()
         self.freshness_checker = FreshnessChecker()
         self.content_comparator = ContentComparator()
-        self.ai_evaluator = ai_evaluator or AiEvaluator()
-        self.replacement_finder = ReplacementFinder(self.ai_evaluator, url_checker=self.url_checker)
+        # Callers may pass an AiEvaluator or a bare provider (both expose evaluate()).
+        # Normalise to AiEvaluator so the underlying provider is reachable for research.
+        if ai_evaluator is None:
+            self.ai_evaluator = AiEvaluator()
+        elif isinstance(ai_evaluator, AiEvaluator):
+            self.ai_evaluator = ai_evaluator
+        else:
+            self.ai_evaluator = AiEvaluator(provider=ai_evaluator)
+        self.replacement_finder = ReplacementFinder(
+            self.ai_evaluator,
+            url_checker=self.url_checker,
+            web_researcher=WebResearcher(ai_provider=self.ai_evaluator.provider),
+            browser_fetch=lambda u: self._get_playwright().inspect_url(u, click_download_buttons=False),
+        )
         self.confidence_engine = ConfidenceEngine()
         self.decision_engine = DecisionEngine()
         self.link_discovery = LinkDiscoveryEngine(max_crawl_depth=2)
@@ -117,9 +130,24 @@ class PipelineOrchestrator:
         human_review_items = 0
         errors = []
 
+        # Pace repeat hits to the same host so anti-bot layers (e.g. eur-lex) don't
+        # start blocking after the first few rapid requests. Only same-domain
+        # consecutive hits pay the delay; distinct domains proceed immediately.
+        last_hit_by_domain: dict[str, float] = {}
+        SAME_DOMAIN_MIN_GAP = 4.0  # seconds
+
         try:
             for idx, link in enumerate(links, 1):
                 try:
+                    domain = urlparse(link.get("url", "")).netloc.lower()
+                    print(f"[{idx}/{total}] {domain} ...", flush=True)
+                    prev = last_hit_by_domain.get(domain)
+                    if prev is not None:
+                        wait = SAME_DOMAIN_MIN_GAP - (time.monotonic() - prev)
+                        if wait > 0:
+                            time.sleep(wait)
+                    last_hit_by_domain[domain] = time.monotonic()
+
                     self._process_single_link(
                         link=link,
                         idx=idx,
@@ -210,6 +238,7 @@ class PipelineOrchestrator:
             record.previous_content_hash = previous_record.content_hash
 
         # 2. HTTP Check & Redirect Chain Analysis
+        logger.info("    - HTTP check ...")
         check = self.url_checker.check(norm_url)
         record.http_status = check.get("http_status")
         raw_tech = check.get("technical_status", "ACCESSIBLE")
@@ -296,6 +325,7 @@ class PipelineOrchestrator:
         pdf_res: Optional[Dict[str, Any]] = None
         is_pdf_target = PdfEngine.is_pdf_url_or_endpoint(final_url, record.content_type)
         if is_pdf_target:
+            logger.info("    - PDF fetch & validate ...")
             pdf_res = PdfEngine.fetch_and_validate(final_url, timeout=25)
             if pdf_res.get("is_valid_pdf"):
                 record.pdf_url = final_url
@@ -339,8 +369,41 @@ class PipelineOrchestrator:
 
         if needs_browser:
             try:
+                logger.info("    - browser escalation (challenge/JS/viewer) ...")
                 pw = self._get_playwright()
                 pw_info = pw.inspect_url(final_url, click_download_buttons=True)
+
+                # Under load, sites with JS/anti-bot challenges (e.g. eur-lex) sometimes
+                # don't resolve within the first attempt's wait budget. A single retry
+                # with a short pause clears these stragglers (confirmed: isolated retries
+                # of these exact URLs return 200 with full content).
+                for _attempt in range(2):
+                    still_challenged = (
+                        pw_info.get("is_access_denied")
+                        or pw_info.get("is_challenge_page")
+                        or (not pw_info.get("is_challenge_resolved") and len(pw_info.get("text", "")) < 300)
+                    )
+                    if not still_challenged:
+                        break
+                    time.sleep(3.0)
+                    retry_info = pw.inspect_url(final_url, click_download_buttons=True)
+                    if len(retry_info.get("text", "")) > len(pw_info.get("text", "")):
+                        pw_info = retry_info
+
+                # Final escalation: if plain-browser retries still hit an anti-bot wall
+                # (typically Cloudflare .gov sites), make one last attempt with stealth
+                # evasions enabled. Best-effort — Cloudflare may still win.
+                still_blocked = (
+                    pw_info.get("is_access_denied")
+                    or pw_info.get("is_challenge_page")
+                    or (not pw_info.get("is_challenge_resolved") and len(pw_info.get("text", "")) < 300)
+                )
+                if still_blocked:
+                    time.sleep(3.0)
+                    stealth_info = pw.inspect_url(final_url, click_download_buttons=True, stealth=True)
+                    if len(stealth_info.get("text", "")) > len(pw_info.get("text", "")):
+                        pw_info = stealth_info
+
                 if pw_info.get("final_url"):
                     record.final_url = pw_info["final_url"]
                     final_url = record.final_url
@@ -524,6 +587,7 @@ class PipelineOrchestrator:
             "evidence": evidence_list,
         }
 
+        logger.info("    - LLM evaluation ...")
         ai_result = self.ai_evaluator.evaluate(record, metadata)
 
         needs_replacement = (
@@ -533,6 +597,7 @@ class PipelineOrchestrator:
         )
 
         if needs_replacement:
+            logger.info("    - replacement research + validation ...")
             ai_result = self.replacement_finder.find(record, metadata)
             if ai_result.replacement_url:
                 record.replacement_url = ai_result.replacement_url
@@ -560,6 +625,16 @@ class PipelineOrchestrator:
                 record.candidate_status = "NONE_FOUND"
         else:
             record.candidate_status = "NO_REPLACEMENT_REQUIRED"
+
+        # The CurrentnessEngine returns UNKNOWN when the page text carries no explicit
+        # lifecycle signal (common for eur-lex consolidated pages, gov portals). Defer to
+        # the LLM's currentness verdict in that case, so a confidently-current link isn't
+        # capped at 0.55 confidence and forced into review. Only fills UNKNOWN — never
+        # overrides an affirmative CurrentnessEngine finding.
+        if record.regulatory_status in ("", "UNKNOWN") and ai_result.regulatory_status not in ("", "UNKNOWN"):
+            record.regulatory_status = ai_result.regulatory_status
+        if record.freshness_status in ("", "UNKNOWN") and ai_result.freshness_status not in ("", "UNKNOWN"):
+            record.freshness_status = ai_result.freshness_status
 
         # 10. Multi-signal Confidence Engine
         ai_result = self.confidence_engine.apply(ai_result, record=record, metadata=metadata)

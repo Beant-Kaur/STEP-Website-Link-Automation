@@ -2,7 +2,7 @@ import logging
 import re
 import time
 from typing import Optional, List, Dict, Any, Tuple
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, unquote
 
 from crawler.url_normalizer import UrlNormalizer
 
@@ -88,6 +88,7 @@ class PlaywrightEngine:
         click_download_buttons: bool = True,
         search_query: str = "",
         max_scrolls: int = 2,
+        stealth: bool = False,
     ) -> Dict[str, Any]:
         """Deep inspection of a URL via Playwright.
 
@@ -107,6 +108,15 @@ class PlaywrightEngine:
             accept_downloads=True,
             ignore_https_errors=True,
         )
+        # Optional stealth pass for hardened anti-bot targets (e.g. Cloudflare).
+        # Applied to the context before any page loads so evasions cover the first request.
+        if stealth:
+            try:
+                from playwright_stealth import Stealth
+                Stealth().apply_stealth_sync(context)
+            except Exception as e:
+                logger.debug(f"Stealth application failed, continuing without it: {e}")
+
         page = context.new_page()
         try:
             page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
@@ -174,8 +184,8 @@ class PlaywrightEngine:
                 or "cf-chl-" in page_content_pre
             )
             if is_bot_challenge:
-                # Wait up to 7 seconds for token acquisition and page reload
-                for _ in range(7):
+                # Wait up to 15 seconds for token acquisition and page reload
+                for _ in range(15):
                     page.wait_for_timeout(1000)
                     cur_title = page.title() or ""
                     cur_body = page.inner_text("body") if page.query_selector("body") else ""
@@ -296,14 +306,14 @@ class PlaywrightEngine:
         # A. PDF.js viewer pattern (viewer.html?file=...)
         pdfjs_match = re.search(r'viewer\.html\?file=([^"\'#&>]+)', html, re.I)
         if pdfjs_match:
-            raw_file = urllib.parse.unquote(pdfjs_match.group(1))
+            raw_file = unquote(pdfjs_match.group(1))
             full_pdf = urljoin(base_url, raw_file)
             return "PDF.js Viewer", full_pdf
 
         # B. Google Docs viewer (viewer?url=... or /view?url=...)
         google_match = re.search(r'docs\.google\.com/viewer\?(?:[^"\'>]*&)?url=([^"\'&>]+)', html, re.I)
         if google_match:
-            raw_file = urllib.parse.unquote(google_match.group(1))
+            raw_file = unquote(google_match.group(1))
             return "Google Docs Viewer", raw_file
 
         # C. Embedded PDF tags: <embed>, <object>, <iframe> with type=application/pdf or .pdf src
