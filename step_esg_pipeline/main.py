@@ -1,7 +1,18 @@
 import argparse
+import logging
 import os
 import sys
 from pathlib import Path
+
+# Show pipeline progress on the terminal. Set STEP_LOG_LEVEL=DEBUG for more detail.
+logging.basicConfig(
+    level=os.getenv("STEP_LOG_LEVEL", "INFO"),
+    format="%(message)s",
+)
+# Quiet noisy third-party HTTP loggers so pipeline steps stay readable.
+for _noisy in ("httpx", "httpcore", "openai", "google_genai", "urllib3",
+               "ddgs", "primp", "duckduckgo_search"):
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 
 from database.models import DatabaseRepository
 from pipeline.decision_engine import DecisionEngine
