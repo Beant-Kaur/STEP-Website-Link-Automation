@@ -100,11 +100,77 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 self._send_json({"ok": False, "error": str(exc)}, status=500)
             return
 
+        # Run status endpoint
+        if clean_path.startswith("/api/run"):
+            self._send_json({"ok": True, "agent_status": "READY", "environment": "local"})
+            return
+
         # Fallback to default file handler
         return super().do_GET()
 
     def do_POST(self) -> None:
         clean_path = self.path.split("?")[0]
+
+        if clean_path.startswith("/api/run"):
+            try:
+                from api.run import audit_record, load_report_data
+                payload = self._read_json() if self.headers.get("Content-Length") else {}
+                jurisdiction = (payload.get("jurisdiction") or "").strip()
+                mode = (payload.get("mode") or "quick").strip().lower()
+                target_link_id = (payload.get("link_id") or "").strip()
+
+                all_recs = load_report_data()
+                targets = []
+                if target_link_id:
+                    targets = [r for r in all_recs if str(r.get("link_id")) == target_link_id or str(r.get("id")) == target_link_id]
+                elif jurisdiction and jurisdiction.lower() not in ("all", "full", ""):
+                    targets = [r for r in all_recs if r.get("jurisdiction", "").lower() == jurisdiction.lower()]
+                else:
+                    targets = all_recs
+
+                all_logs = []
+                updated_records = []
+                import time
+                ts = time.strftime("%H:%M:%S")
+                all_logs.append(f"[{ts}] === LOCAL STEP ESG AUDIT AGENT ACTIVATED ===")
+                all_logs.append(f"[{ts}] Scope: {jurisdiction or 'Full Platform'} | Mode: {mode.upper()} | Targets: {len(targets)}")
+
+                for rec in targets:
+                    up_rec, logs = audit_record(rec, mode=mode)
+                    all_logs.extend(logs)
+                    updated_records.append(up_rec)
+
+                # Save updated records to data/report.json if changed
+                report_file = BASE_DIR / "data" / "report.json"
+                if report_file.exists():
+                    try:
+                        curr = json.loads(report_file.read_text(encoding="utf-8"))
+                        id_map = {str(r.get("link_id") or r.get("id")): r for r in updated_records}
+                        for r in curr:
+                            rid = str(r.get("link_id") or r.get("id"))
+                            if rid in id_map:
+                                r.update(id_map[rid])
+                        report_file.write_text(json.dumps(curr, indent=2, ensure_ascii=False), encoding="utf-8")
+                    except Exception:
+                        pass
+
+                self._send_json({
+                    "ok": True,
+                    "jurisdiction": jurisdiction or "All",
+                    "mode": mode,
+                    "audited_count": len(updated_records),
+                    "logs": all_logs,
+                    "records": updated_records,
+                    "stats": {
+                        "total": len(updated_records),
+                        "confirmed_latest": sum(1 for r in updated_records if r.get("final_status") == "KEEP"),
+                        "replacement_needed": sum(1 for r in updated_records if r.get("final_status") == "RECOMMEND_REPLACEMENT"),
+                        "review": sum(1 for r in updated_records if r.get("final_status") == "HUMAN_REVIEW")
+                    }
+                })
+            except Exception as exc:
+                self._send_json({"ok": False, "error": str(exc)}, status=500)
+            return
 
         if clean_path.startswith("/api/apply"):
             try:

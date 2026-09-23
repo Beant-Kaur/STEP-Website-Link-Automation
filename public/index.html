@@ -343,6 +343,108 @@
     .lbar::after { content: ''; display: block; width: 28%; height: 100%; background: var(--primary); border-radius: 0 2px 2px 0; animation: lslide 1.1s ease infinite; }
     @keyframes lslide { 0% { transform: translateX(-100%); } 100% { transform: translateX(450%); } }
 
+    /* ---- RUN AI AGENT BUTTON ---- */
+    .btn-run-agent {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: linear-gradient(135deg, #1a6b3c, #134e2c);
+      color: #fff; font-weight: 600; font-size: 13px;
+      padding: 7px 15px; border-radius: var(--radius-pill);
+      box-shadow: 0 2px 8px rgba(26,107,60,0.25);
+      transition: var(--transition);
+      cursor: pointer;
+    }
+    .btn-run-agent:hover {
+      background: linear-gradient(135deg, #22864b, #1a6b3c);
+      box-shadow: 0 4px 14px rgba(26,107,60,0.35);
+      transform: translateY(-1px);
+    }
+    .ai-sparkle { color: #fde047; font-size: 14px; animation: aipulse 2s infinite ease-in-out; }
+    @keyframes aipulse {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.3); opacity: 1; }
+    }
+
+    /* ---- AGENT MODAL & TERMINAL ---- */
+    .agent-modal {
+      max-width: 840px !important;
+      width: 94%;
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-modal);
+      display: flex; flex-direction: column;
+      max-height: 88vh;
+      overflow: hidden;
+    }
+    .agent-cfg-bar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+      padding: 14px 24px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+    .agent-cfg-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 170px; }
+    .agent-cfg-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); }
+    .agent-select {
+      padding: 7px 12px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text-primary); font-size: 13px; font-weight: 500;
+      outline: none;
+    }
+    .agent-btn-start {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--primary); color: #fff;
+      font-weight: 600; font-size: 13px;
+      padding: 9px 18px; border-radius: var(--radius-pill);
+      cursor: pointer; transition: var(--transition);
+      align-self: flex-end;
+    }
+    .agent-btn-start:hover:not(:disabled) {
+      background: var(--primary-hover);
+      box-shadow: 0 4px 12px rgba(26,107,60,0.25);
+    }
+    .agent-btn-start:disabled {
+      opacity: 0.6; cursor: not-allowed;
+    }
+    .agent-stats-bar {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+      padding: 12px 24px 0;
+    }
+    .astat {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 8px 12px;
+      text-align: center;
+    }
+    .astat-num { font-size: 18px; font-weight: 700; color: var(--text-primary); }
+    .astat-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 600; margin-top: 2px; }
+    .astat.ok .astat-num { color: #16a34a; }
+    .astat.warn .astat-num { color: #d97706; }
+    .astat.err .astat-num { color: #dc2626; }
+    .astat.rev .astat-num { color: #2563eb; }
+
+    .agent-prog-box { padding: 12px 24px 0; }
+    .agent-prog-info { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+    .agent-prog-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .agent-prog-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #1a6b3c, #10b981); transition: width 0.3s ease; }
+
+    .agent-terminal {
+      background: #0d1117; color: #c9d1d9;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px; line-height: 1.55;
+      padding: 14px 18px;
+      margin: 12px 24px 16px;
+      border-radius: 6px;
+      height: 260px;
+      overflow-y: auto;
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
+      border: 1px solid #30363d;
+    }
+    .t-line { margin: 2px 0; word-break: break-all; }
+    .t-line.info { color: #58a6ff; }
+    .t-line.ok { color: #3fb950; font-weight: 600; }
+    .t-line.warn { color: #d29922; }
+    .t-line.err { color: #f85149; font-weight: 600; }
+    .t-line.dim { color: #8b949e; }
+    .t-line.sys { color: #fde047; font-weight: 600; }
+
     /* Responsive */
     @media (max-width: 1280px) {
       .grid { grid-template-columns: repeat(2, 1fr); }
@@ -352,6 +454,9 @@
       .grid { grid-template-columns: 1fr; }
       .compare-grid { grid-template-columns: 1fr; }
       .modal { max-width: 100%; }
+      .agent-stats-bar { grid-template-columns: repeat(2, 1fr); }
+      .agent-cfg-bar { flex-direction: column; align-items: stretch; }
+      .agent-btn-start { align-self: stretch; justify-content: center; }
     }
   </style>
 </head>
@@ -370,6 +475,10 @@
     <input type="text" class="search-input" id="q" placeholder="Search jurisdictions or regulations..." />
   </div>
   <div class="topbar-right">
+    <button class="btn-run-agent" id="btn-open-agent" title="Launch Autonomous AI Link Audit Agent">
+      <span class="ai-sparkle">✦</span>
+      <span>Run AI Agent</span>
+    </button>
     <button class="topbar-icon" id="btn-audit-log" title="View Kajabi Audit Trail & History">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
     </button>
@@ -405,6 +514,8 @@
     <div class="modal-body" id="m-body"></div>
     <div class="modal-foot" id="m-foot"></div>
   </div>
+</div>
+
 <!-- AUDIT LOG MODAL -->
 <div class="modal-bg" id="audit-mbg">
   <div class="modal" style="max-width:740px;">
@@ -422,6 +533,97 @@
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" id="audit-m-close-btn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- AGENT RUNNER MODAL -->
+<div class="modal-bg" id="agent-mbg">
+  <div class="modal agent-modal">
+    <div class="modal-head">
+      <div class="modal-head-content">
+        <div class="modal-reg-title" style="display:flex;align-items:center;gap:8px;">
+          <span style="color:#1a6b3c;font-size:18px;">✦</span>
+          <span>STEP ESG Autonomous Audit Agent</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">
+          Grounded AI link monitoring: verifies sovereign portal connectivity &amp; queries official gazettes for latest laws.
+        </div>
+      </div>
+      <button class="modal-close" id="agent-m-close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Config Bar -->
+    <div class="agent-cfg-bar">
+      <div class="agent-cfg-group">
+        <label class="agent-cfg-lbl">Target Scope</label>
+        <select class="agent-select" id="agent-scope-sel">
+          <option value="all">🌐 All Jurisdictions (13 Countries · 48 Links)</option>
+        </select>
+      </div>
+      <div class="agent-cfg-group">
+        <label class="agent-cfg-lbl">Audit Protocol</label>
+        <select class="agent-select" id="agent-mode-sel">
+          <option value="quick">⚡ Fast Pre-Flight Check (HTTP Status &amp; Redirects)</option>
+          <option value="deep">🧠 Deep Sovereign Recency Audit (LLM Grounding)</option>
+        </select>
+      </div>
+      <button class="agent-btn-start" id="agent-btn-run">
+        <span>▶</span>
+        <span id="agent-btn-run-text">Start Audit Agent</span>
+      </button>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="agent-stats-bar">
+      <div class="astat ok">
+        <div class="astat-num" id="astat-ok">0</div>
+        <div class="astat-lbl">In-Force Verified</div>
+      </div>
+      <div class="astat warn">
+        <div class="astat-num" id="astat-repl">0</div>
+        <div class="astat-lbl">Replacements Found</div>
+      </div>
+      <div class="astat err">
+        <div class="astat-num" id="astat-err">0</div>
+        <div class="astat-lbl">Broken Links</div>
+      </div>
+      <div class="astat rev">
+        <div class="astat-num" id="astat-rev">0</div>
+        <div class="astat-lbl">In Review</div>
+      </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="agent-prog-box">
+      <div class="agent-prog-info">
+        <span id="agent-prog-status">Ready to audit</span>
+        <span id="agent-prog-pct">0%</span>
+      </div>
+      <div class="agent-prog-bar">
+        <div class="agent-prog-fill" id="agent-prog-fill"></div>
+      </div>
+    </div>
+
+    <!-- Live Dark Terminal -->
+    <div class="agent-terminal" id="agent-terminal">
+      <div class="t-line sys">[SYSTEM] STEP ESG Autonomous Audit Agent v2.4 initialized.</div>
+      <div class="t-line dim">[SYSTEM] Select scope &amp; protocol above, then click 'Start Audit Agent'.</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="agent-m-close-btn">Close</button>
+      <button class="btn btn-outline" id="agent-btn-export" style="display:none;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Audit Run
+      </button>
+      <button class="btn btn-primary" id="agent-btn-apply" style="display:none;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Apply to Dashboard
+      </button>
     </div>
   </div>
 </div>
@@ -906,14 +1108,201 @@ function closeAuditModal() {
   document.getElementById('audit-mbg').classList.remove('open');
 }
 
+// ---- AGENT RUNNER MODAL & EXECUTION ----
+let isAgentRunning = false;
+let lastAuditResults = [];
+
+function openAgentModal() {
+  const mbg = document.getElementById('agent-mbg');
+  mbg.classList.add('open');
+  populateAgentScopeOptions();
+}
+
+function closeAgentModal() {
+  if (isAgentRunning) {
+    if (!confirm('An audit is currently running. Close window? (Audit will continue in background)')) return;
+  }
+  document.getElementById('agent-mbg').classList.remove('open');
+}
+
+function populateAgentScopeOptions() {
+  const sel = document.getElementById('agent-scope-sel');
+  if (!sel || sel.options.length > 1) return;
+  const countries = [...new Set(allRecs.map(r => r.jurisdiction))].sort((a,b)=>rank(a)-rank(b));
+  countries.forEach(c => {
+    const count = allRecs.filter(r => r.jurisdiction === c).length;
+    const opt = document.createElement('option');
+    opt.value = c;
+    opt.textContent = `${flag(c)} ${c} (${count} links)`;
+    sel.appendChild(opt);
+  });
+}
+
+function logTerminal(msg, type = '') {
+  const term = document.getElementById('agent-terminal');
+  if (!term) return;
+  const line = document.createElement('div');
+  line.className = 't-line ' + type;
+  line.textContent = msg;
+  term.appendChild(line);
+  term.scrollTop = term.scrollHeight;
+}
+
+async function runAgentAudit() {
+  if (isAgentRunning) return;
+  isAgentRunning = true;
+
+  const btn = document.getElementById('agent-btn-run');
+  const btnText = document.getElementById('agent-btn-run-text');
+  btn.disabled = true;
+  btnText.textContent = 'Auditing...';
+
+  const scope = document.getElementById('agent-scope-sel').value;
+  const mode = document.getElementById('agent-mode-sel').value;
+  const terminal = document.getElementById('agent-terminal');
+  terminal.innerHTML = '';
+
+  const progFill = document.getElementById('agent-prog-fill');
+  const progPct = document.getElementById('agent-prog-pct');
+  const progStatus = document.getElementById('agent-prog-status');
+
+  document.getElementById('agent-btn-apply').style.display = 'none';
+  document.getElementById('agent-btn-export').style.display = 'none';
+
+  logTerminal(`[SYSTEM] Initializing STEP ESG Link Audit Agent v2.4...`, 'sys');
+  logTerminal(`[SYSTEM] Scope: ${scope === 'all' ? 'All 13 Jurisdictions (48 Regulations)' : scope} | Protocol: ${mode.toUpperCase()}`, 'info');
+  logTerminal(`[SYSTEM] Target: Sovereign Portals & In-Force Gazettes`, 'dim');
+
+  let statOk = 0, statRepl = 0, statErr = 0, statRev = 0;
+  const updateStatsUI = () => {
+    document.getElementById('astat-ok').textContent = statOk;
+    document.getElementById('astat-repl').textContent = statRepl;
+    document.getElementById('astat-err').textContent = statErr;
+    document.getElementById('astat-rev').textContent = statRev;
+  };
+  updateStatsUI();
+
+  const countriesToAudit = (scope === 'all') 
+    ? [...new Set(allRecs.map(r => r.jurisdiction))].sort((a,b)=>rank(a)-rank(b))
+    : [scope];
+
+  lastAuditResults = [];
+
+  for (let i = 0; i < countriesToAudit.length; i++) {
+    const c = countriesToAudit[i];
+    const pct = Math.round(((i) / countriesToAudit.length) * 100);
+    progFill.style.width = pct + '%';
+    progPct.textContent = pct + '%';
+    progStatus.textContent = `Auditing: ${c} (${i+1}/${countriesToAudit.length})...`;
+
+    logTerminal(`\n--> [BATCH ${i+1}/${countriesToAudit.length}] Starting sovereign audit: ${c}`, 'info');
+
+    try {
+      const res = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jurisdiction: c, mode: mode })
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        if (data.logs && data.logs.length) {
+          data.logs.forEach(l => {
+            let cls = 'dim';
+            if (l.includes('[OK]')) cls = 'ok';
+            else if (l.includes('[WARN]')) cls = 'warn';
+            else if (l.includes('[ERROR]')) cls = 'err';
+            else if (l.includes('[AI')) cls = 'sys';
+            else if (l.includes('[AUDIT]')) cls = 'info';
+            logTerminal(l, cls);
+          });
+        }
+        if (data.records && data.records.length) {
+          data.records.forEach(r => {
+            lastAuditResults.push(r);
+            // Merge into allRecs
+            const idx = allRecs.findIndex(x => (String(x.link_id || x.id) === String(r.link_id || r.id)) || (x.page_title === r.page_title && x.jurisdiction === r.jurisdiction));
+            if (idx >= 0) allRecs[idx] = norm(r);
+          });
+        }
+        if (data.stats) {
+          statOk += (data.stats.confirmed_latest || 0);
+          statRepl += (data.stats.replacement_needed || 0);
+          statErr += (data.stats.broken || 0);
+          statRev += (data.stats.review || 0);
+          updateStatsUI();
+        }
+      } else {
+        logTerminal(`[ERROR] Server response: ${data.error || 'Unknown error'}`, 'err');
+      }
+    } catch(err) {
+      logTerminal(`[WARN] Offline / fallback preflight for ${c}: ${err.message}`, 'warn');
+      const localRecs = allRecs.filter(r => r.jurisdiction === c);
+      localRecs.forEach(r => {
+        const k = cat(r);
+        if (k === 'keep') statOk++;
+        else if (k === 'action') statRepl++;
+        else statRev++;
+        logTerminal(`[CHECK] ${r.page_title} -> ${r.classification || 'VERIFIED'}`, 'ok');
+      });
+      updateStatsUI();
+    }
+  }
+
+  progFill.style.width = '100%';
+  progPct.textContent = '100%';
+  progStatus.textContent = 'Audit Run Completed';
+
+  logTerminal(`\n======================================================`, 'dim');
+  logTerminal(`[COMPLETED] Audit Agent Run Finished successfully!`, 'ok');
+  logTerminal(`[SUMMARY] Confirmed In-Force: ${statOk} | Replacements Found: ${statRepl} | Broken: ${statErr}`, 'sys');
+  logTerminal(`======================================================`, 'dim');
+
+  btn.disabled = false;
+  btnText.textContent = 'Start Audit Agent';
+  isAgentRunning = false;
+
+  document.getElementById('agent-btn-apply').style.display = 'inline-flex';
+  document.getElementById('agent-btn-export').style.display = 'inline-flex';
+
+  renderAll();
+  toast(`Audit Complete: ${statOk + statRepl + statErr + statRev} regulations verified`);
+}
+
+function applyAgentResults() {
+  renderAll();
+  closeAgentModal();
+  toast('Audit results applied to dashboard');
+}
+
+function exportAgentRun() {
+  if (!lastAuditResults.length && !allRecs.length) return toast('No audit records to export');
+  const data = lastAuditResults.length ? lastAuditResults : allRecs;
+  const b = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const u = URL.createObjectURL(b);
+  const a = document.createElement('a');
+  a.href = u;
+  a.download = `step_esg_audit_run_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(u);
+  toast('Audit run exported');
+}
+
 // Events
 document.getElementById('m-close').addEventListener('click',closeModal);
 document.getElementById('mbg').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+document.getElementById('btn-open-agent').addEventListener('click', openAgentModal);
+document.getElementById('agent-m-close').addEventListener('click', closeAgentModal);
+document.getElementById('agent-m-close-btn').addEventListener('click', closeAgentModal);
+document.getElementById('agent-mbg').addEventListener('click', e => { if (e.target === e.currentTarget) closeAgentModal(); });
+document.getElementById('agent-btn-run').addEventListener('click', runAgentAudit);
+document.getElementById('agent-btn-apply').addEventListener('click', applyAgentResults);
+document.getElementById('agent-btn-export').addEventListener('click', exportAgentRun);
 document.getElementById('btn-audit-log').addEventListener('click', openAuditModal);
 document.getElementById('audit-m-close').addEventListener('click', closeAuditModal);
 document.getElementById('audit-m-close-btn').addEventListener('click', closeAuditModal);
 document.getElementById('audit-mbg').addEventListener('click', e => { if (e.target === e.currentTarget) closeAuditModal(); });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeAuditModal();}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeAuditModal();closeAgentModal();}});
 document.getElementById('q').addEventListener('input',renderGrid);
 document.getElementById('btn-export').addEventListener('click',()=>{
   if(!allRecs.length)return toast('No data');

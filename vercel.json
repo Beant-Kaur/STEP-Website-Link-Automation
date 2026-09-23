@@ -1,15 +1,16 @@
 {
   "version": 2,
-  "name": "step-esg",
   "cleanUrls": true,
   "outputDirectory": "public",
   "rewrites": [
-    { "source": "/", "destination": "/index.html" },
-    { "source": "/dashboard", "destination": "/index.html" },
-    { "source": "/dashboard/", "destination": "/index.html" },
+    { "source": "/api/run", "destination": "/api/run.py" },
+    { "source": "/api/apply", "destination": "/api/apply.py" },
     { "source": "/api/report", "destination": "/report.json" },
     { "source": "/api/audit-log", "destination": "/audit_log.json" },
-    { "source": "/api/status", "destination": "/status.json" }
+    { "source": "/api/status", "destination": "/status.json" },
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/dashboard", "destination": "/index.html" },
+    { "source": "/dashboard/", "destination": "/index.html" }
   ],
   "headers": [
     {
