@@ -104,8 +104,11 @@ class PipelineOrchestrator:
         topic: str = "",
         step_section: str = "",
         limit: int = 0,
+        start_index: int = 1,
+        run_id: str = "",
     ) -> str:
-        run_id = uuid.uuid4().hex
+        if not run_id:
+            run_id = uuid.uuid4().hex
         start_time = datetime.now(timezone.utc)
         links = self.extractor.extract_from_html(step_html, base_url, section=step_section)
 
@@ -138,6 +141,8 @@ class PipelineOrchestrator:
 
         try:
             for idx, link in enumerate(links, 1):
+                if idx < start_index:
+                    continue
                 try:
                     domain = urlparse(link.get("url", "")).netloc.lower()
                     print(f"[{idx}/{total}] {domain} ...", flush=True)

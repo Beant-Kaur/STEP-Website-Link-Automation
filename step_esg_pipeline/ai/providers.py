@@ -370,7 +370,7 @@ class OpenAIProvider(_BaseAiProvider):
         # base_url lets this class target any OpenAI-compatible gateway (e.g. AgentRouter).
         # default_headers lets a gateway that does client-fingerprint validation
         # (e.g. AgentRouter) recognise us as an allowed client — key auth alone isn't enough.
-        client_kwargs = {"api_key": api_key}
+        client_kwargs = {"api_key": api_key, "timeout": 60.0}
         if base_url:
             client_kwargs["base_url"] = base_url
         if default_headers:

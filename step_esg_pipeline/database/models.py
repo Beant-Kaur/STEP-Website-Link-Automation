@@ -599,7 +599,7 @@ class DatabaseRepository:
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO pipeline_runs (
+            INSERT OR REPLACE INTO pipeline_runs (
                 run_id, start_time, end_time, total_links, successful_checks,
                 failed_checks, ai_evaluations, replacement_candidates,
                 human_review_items, errors

@@ -27,6 +27,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sample", action="store_true", help="Use bundled sample STEP HTML for demo")
     parser.add_argument("--kajabi", action="store_true", help="Target STEP Kajabi ESG Legislative Landscape section specifically")
     parser.add_argument("--limit", type=int, default=0, help="Limit number of links to process (0 = all)")
+    parser.add_argument("--start", type=int, default=1, help="Start from link index (1-based, default 1)")
+    parser.add_argument("--run-id", default="", help="Run ID to use (allows resuming an existing run)")
+    parser.add_argument("--resume", action="store_true", help="Automatically resume the latest interrupted run")
     parser.add_argument("--base-url", default="", help="Base URL for relative links")
     parser.add_argument("--jurisdiction", default="", help="Jurisdiction label")
     parser.add_argument("--topic", default="", help="Topic label")
@@ -64,6 +67,30 @@ def main(argv: list[str] | None = None) -> int:
     ai_provider = load_provider_from_config(config.to_dict())
     orchestrator = PipelineOrchestrator(repository, ai_evaluator=ai_provider)
     section = args.step_section or ("ESG Legislative Landscape" if args.kajabi else args.step_section)
+
+    start_index = args.start
+    run_id = args.run_id
+    if args.resume and not run_id:
+        try:
+            conn = repository._get_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM link_records WHERE id LIKE '%_%' ORDER BY rowid DESC LIMIT 1")
+            latest_row = cur.fetchone()
+            if latest_row:
+                cand_run_id = latest_row[0].rsplit("_", 1)[0]
+                cur.execute(
+                    "SELECT id, final_decision FROM link_records WHERE id LIKE ? ORDER BY rowid ASC",
+                    (f"{cand_run_id}_%",),
+                )
+                run_rows = cur.fetchall()
+                completed = sum(1 for r in run_rows if r[1])
+                run_id = cand_run_id
+                start_index = completed + 1
+                print(f"Resuming run {run_id} from link {start_index} ({completed} links already completed)")
+            conn.close()
+        except Exception as e:
+            print(f"Resume detection failed, starting new run: {e}")
+
     run_id = orchestrator.run(
         step_html=html,
         base_url=base_url,
@@ -71,12 +98,20 @@ def main(argv: list[str] | None = None) -> int:
         topic=args.topic,
         step_section=section,
         limit=args.limit,
+        start_index=start_index,
+        run_id=run_id,
     )
     print(f"Run ID: {run_id}")
 
     records = repository.get_all_links()
     if run_id:
         records = [r for r in records if r.link_id.startswith(run_id)]
+    # Sort records numerically by link index
+    records.sort(
+        key=lambda r: int(r.link_id.rsplit("_", 1)[-1])
+        if "_" in r.link_id and r.link_id.rsplit("_", 1)[-1].isdigit()
+        else 0
+    )
     if args.csv:
         CsvReport.generate(records, args.csv)
         print(f"CSV report written to {args.csv}")
