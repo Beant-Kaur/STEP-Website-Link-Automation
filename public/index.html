@@ -84,6 +84,7 @@
       width: 34px; height: 34px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
       color: var(--text-muted); transition: var(--transition);
+      cursor: pointer; position: relative; border: none; background: transparent;
     }
     .topbar-icon:hover { background: var(--bg); color: var(--text-primary); }
     .avatar {
@@ -91,7 +92,126 @@
       background: var(--primary); color: #fff;
       font-size: 12px; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: var(--transition); user-select: none;
     }
+    .avatar:hover {
+      box-shadow: 0 0 0 2px rgba(26,107,60,0.3);
+      transform: scale(1.05);
+    }
+
+    /* ---- POPOVERS (NOTIFICATIONS & PROFILE) ---- */
+    .topbar-popover-wrap { position: relative; display: inline-flex; align-items: center; }
+    .notif-badge {
+      position: absolute; top: -1px; right: -1px;
+      background: #e11d48; color: #fff;
+      font-size: 10px; font-weight: 700;
+      min-width: 16px; height: 16px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 3px; border: 2px solid var(--surface);
+      pointer-events: none;
+      animation: pulse-badge 2s infinite ease-in-out;
+    }
+    @keyframes pulse-badge {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.12); }
+    }
+    .popover {
+      position: absolute; top: calc(100% + 10px); right: 0;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: 0 12px 36px rgba(0,0,0,0.15), 0 2px 6px rgba(0,0,0,0.06);
+      z-index: 150; width: 340px;
+      opacity: 0; pointer-events: none; transform: translateY(6px);
+      transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .popover.open {
+      opacity: 1; pointer-events: auto; transform: translateY(0);
+    }
+    .popover-head {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .popover-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+    .popover-tag { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: var(--radius-pill); background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    
+    .notif-list { max-height: 280px; overflow-y: auto; padding: 4px 0; }
+    .notif-item {
+      padding: 10px 16px; display: flex; gap: 10px; align-items: flex-start;
+      border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s ease;
+    }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item:hover { background: var(--bg); }
+    .notif-icon {
+      width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 11px; flex-shrink: 0; margin-top: 1px;
+    }
+    .notif-icon.warn { background: #fffbeb; color: #d97706; }
+    .notif-icon.err { background: #fef2f2; color: #dc2626; }
+    .notif-icon.ok { background: #f0fdf4; color: #16a34a; }
+    .notif-content { flex: 1; min-width: 0; }
+    .notif-title { font-size: 12px; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
+    .notif-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; line-height: 1.35; }
+    .notif-time { font-size: 10px; color: var(--primary); font-weight: 600; margin-top: 4px; }
+    
+    .popover-foot {
+      padding: 10px 16px; border-top: 1px solid var(--border); background: var(--bg);
+      display: flex; gap: 8px; justify-content: space-between; border-radius: 0 0 var(--radius) var(--radius);
+    }
+    .btn-popover-action {
+      flex: 1; padding: 7px 12px; font-size: 12px; font-weight: 600;
+      background: var(--primary); color: #fff; border-radius: var(--radius-sm);
+      text-align: center; cursor: pointer; border: none; transition: var(--transition);
+    }
+    .btn-popover-action:hover { background: var(--primary-hover); }
+    .btn-popover-ghost {
+      padding: 7px 12px; font-size: 12px; font-weight: 500;
+      color: var(--text-muted); background: transparent; border: none; cursor: pointer;
+    }
+    .btn-popover-ghost:hover { color: var(--text-primary); }
+
+    /* Profile Popover */
+    .profile-popover { width: 310px; padding: 0; overflow: hidden; }
+    .profile-card-head {
+      padding: 16px 18px 14px; display: flex; align-items: center; gap: 14px;
+      background: linear-gradient(135deg, rgba(26,107,60,0.08) 0%, rgba(16,185,129,0.04) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .profile-avatar-lg {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: linear-gradient(135deg, #1a6b3c 0%, #10b981 100%);
+      color: #fff; font-size: 16px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 2px 8px rgba(26,107,60,0.25);
+    }
+    .profile-info { flex: 1; min-width: 0; }
+    .profile-name { font-size: 14px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
+    .profile-role { font-size: 11px; font-weight: 600; color: #166534; margin-top: 2px; }
+    .profile-org { font-size: 11px; color: var(--text-muted); }
+    
+    .profile-section { padding: 12px 18px; border-bottom: 1px solid var(--border); }
+    .profile-meta-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 5px 0; font-size: 12px;
+    }
+    .profile-meta-k { color: var(--text-muted); }
+    .profile-meta-v { font-weight: 600; color: var(--text-primary); }
+    .profile-meta-v.status-live { color: #16a34a; display: flex; align-items: center; gap: 4px; }
+    
+    .profile-actions { padding: 12px 18px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); }
+    .profile-btn-primary {
+      width: 100%; padding: 8px 12px; border-radius: var(--radius-sm);
+      background: var(--primary); color: #fff; font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      cursor: pointer; border: none; transition: var(--transition);
+    }
+    .profile-btn-primary:hover { background: var(--primary-hover); }
+    .profile-btn-secondary {
+      width: 100%; padding: 8px 12px; border-radius: var(--radius-sm);
+      background: var(--surface); color: var(--text-secondary); font-size: 12px; font-weight: 500;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      cursor: pointer; border: 1px solid var(--border); transition: var(--transition);
+    }
+    .profile-btn-secondary:hover { color: var(--text-primary); border-color: var(--border-strong); }
 
     /* ---- FILTER BAR ---- */
     .filter-bar { padding: 16px 32px 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -521,10 +641,63 @@
     <button class="topbar-icon" id="btn-export" title="Export report">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
     </button>
-    <button class="topbar-icon" title="Notifications">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-    </button>
-    <div class="avatar">SM</div>
+    <!-- Notifications Popover Wrap -->
+    <div class="topbar-popover-wrap">
+      <button class="topbar-icon" id="btn-notifications" title="Notifications & Link Alerts">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span class="notif-badge" id="notif-badge">3</span>
+      </button>
+      <div class="popover notif-popover" id="notif-popover">
+        <div class="popover-head">
+          <div class="popover-title">Notifications</div>
+          <span class="popover-tag" id="notif-count-tag">3 Action Required</span>
+        </div>
+        <div class="notif-list" id="notif-list">
+          <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Loading alerts...</div>
+        </div>
+        <div class="popover-foot">
+          <button class="btn-popover-action" id="notif-btn-audit">Run Deep Audit</button>
+          <button class="btn-popover-ghost" id="notif-btn-clear">Dismiss All</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Executive Profile Popover Wrap -->
+    <div class="topbar-popover-wrap">
+      <div class="avatar" id="btn-profile" role="button" tabindex="0" title="Sustainability Manager Profile">SM</div>
+      <div class="popover profile-popover" id="profile-popover">
+        <div class="profile-card-head">
+          <div class="profile-avatar-lg">SM</div>
+          <div class="profile-info">
+            <div class="profile-name">Sustainability Manager</div>
+            <div class="profile-role">ESG Compliance Lead</div>
+            <div class="profile-org">STEP Intelligence Hub</div>
+          </div>
+        </div>
+        <div class="profile-section">
+          <div class="profile-meta-row">
+            <span class="profile-meta-k">Coverage</span>
+            <span class="profile-meta-v">13 Countries (48 Laws)</span>
+          </div>
+          <div class="profile-meta-row">
+            <span class="profile-meta-k">Kajabi Integration</span>
+            <span class="profile-meta-v status-live">● Connected / Ready</span>
+          </div>
+          <div class="profile-meta-row">
+            <span class="profile-meta-k">Environment</span>
+            <span class="profile-meta-v">Vercel Production v2.4</span>
+          </div>
+        </div>
+        <div class="profile-actions">
+          <button class="profile-btn-primary" id="profile-btn-run">
+            <span>✦</span> Run Autonomous Agent
+          </button>
+          <button class="profile-btn-secondary" id="profile-btn-ledger">
+            <span>📋</span> View Kajabi Audit Ledger
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -836,7 +1009,7 @@ async function load(){
 }
 
 // ---- Render ----
-function renderAll(){ renderFilters(); renderGrid(); renderTs(); }
+function renderAll(){ renderFilters(); renderGrid(); renderTs(); renderNotifications(); }
 
 function renderFilters(){
   let kc=0,ac=0,rc=0;
@@ -1330,6 +1503,97 @@ function exportAgentRun() {
   toast('Audit run exported');
 }
 
+// ---- Notifications & Profile Popovers ----
+function closeAllPopovers() {
+  document.getElementById('notif-popover')?.classList.remove('open');
+  document.getElementById('profile-popover')?.classList.remove('open');
+}
+
+function toggleNotifPopover(e) {
+  e.stopPropagation();
+  const np = document.getElementById('notif-popover');
+  const pp = document.getElementById('profile-popover');
+  pp?.classList.remove('open');
+  np?.classList.toggle('open');
+}
+
+function toggleProfilePopover(e) {
+  e.stopPropagation();
+  const np = document.getElementById('notif-popover');
+  const pp = document.getElementById('profile-popover');
+  np?.classList.remove('open');
+  pp?.classList.toggle('open');
+}
+
+function renderNotifications() {
+  const list = document.getElementById('notif-list');
+  const badge = document.getElementById('notif-badge');
+  const countTag = document.getElementById('notif-count-tag');
+  if (!list) return;
+
+  const replaceRecs = allRecs.filter(r => r.final_status === 'RECOMMEND_REPLACEMENT');
+  const count = replaceRecs.length;
+
+  if (badge) {
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+  if (countTag) {
+    countTag.textContent = count > 0 ? `${count} Action Required` : 'All Verified';
+  }
+
+  let html = '';
+  replaceRecs.forEach(r => {
+    const reasonShort = r.replacement_reason ? r.replacement_reason.split('.')[0] + '.' : 'Sovereign replacement link available.';
+    html += `
+      <div class="notif-item" data-id="${esc(r.link_id || r.id)}">
+        <div class="notif-icon warn">⚠️</div>
+        <div class="notif-content">
+          <div class="notif-title">${FLAGS[r.jurisdiction] || '🌐'} ${esc(r.jurisdiction)}: ${esc(cleanEnglishTitle(r.page_title))}</div>
+          <div class="notif-desc">${esc(reasonShort)}</div>
+          <div class="notif-time">Click to inspect and sync</div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `
+    <div class="notif-item" id="notif-item-agent">
+      <div class="notif-icon ok">✦</div>
+      <div class="notif-content">
+        <div class="notif-title">Autonomous AI Audit Agent v2.4</div>
+        <div class="notif-desc">Deep Sovereign Recency Audit grounded against official gazettes ready to run.</div>
+        <div class="notif-time">System ready</div>
+      </div>
+    </div>
+  `;
+
+  list.innerHTML = html;
+
+  list.querySelectorAll('.notif-item[data-id]').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = el.getAttribute('data-id');
+      const rec = allRecs.find(x => String(x.link_id || x.id) === id);
+      if (rec) {
+        closeAllPopovers();
+        openModal(rec);
+      }
+    });
+  });
+
+  const agentNotif = document.getElementById('notif-item-agent');
+  if (agentNotif) {
+    agentNotif.addEventListener('click', () => {
+      closeAllPopovers();
+      openAgentModal();
+    });
+  }
+}
+
 // Events
 document.getElementById('m-close').addEventListener('click',closeModal);
 document.getElementById('mbg').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
@@ -1344,7 +1608,24 @@ document.getElementById('btn-audit-log').addEventListener('click', openAuditModa
 document.getElementById('audit-m-close').addEventListener('click', closeAuditModal);
 document.getElementById('audit-m-close-btn').addEventListener('click', closeAuditModal);
 document.getElementById('audit-mbg').addEventListener('click', e => { if (e.target === e.currentTarget) closeAuditModal(); });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeAuditModal();closeAgentModal();}});
+
+// Popover events
+document.getElementById('btn-notifications')?.addEventListener('click', toggleNotifPopover);
+document.getElementById('btn-profile')?.addEventListener('click', toggleProfilePopover);
+document.getElementById('notif-btn-audit')?.addEventListener('click', () => { closeAllPopovers(); openAgentModal(); });
+document.getElementById('notif-btn-clear')?.addEventListener('click', () => {
+  const badge = document.getElementById('notif-badge');
+  if (badge) badge.style.display = 'none';
+  closeAllPopovers();
+  toast('Notifications dismissed');
+});
+document.getElementById('profile-btn-run')?.addEventListener('click', () => { closeAllPopovers(); openAgentModal(); });
+document.getElementById('profile-btn-ledger')?.addEventListener('click', () => { closeAllPopovers(); openAuditModal(); });
+document.addEventListener('click', e => {
+  if (!e.target.closest('.topbar-popover-wrap')) closeAllPopovers();
+});
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeAuditModal();closeAgentModal();closeAllPopovers();}});
 document.getElementById('q').addEventListener('input',renderGrid);
 document.getElementById('btn-export').addEventListener('click',()=>{
   if(!allRecs.length)return toast('No data');
