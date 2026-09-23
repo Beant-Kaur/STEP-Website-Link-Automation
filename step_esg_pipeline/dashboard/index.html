@@ -449,18 +449,74 @@
       margin-bottom: 3px;
       line-height: 1.4;
     }
-    .resource-url {
+    .resource-url-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      max-width: 100%;
+    }
+    .domain-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       font-size: 11px;
-      color: var(--text-muted);
-      word-break: break-all;
-      display: block;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      padding: 2px 7px;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      transition: all var(--transition);
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      line-height: 1.4;
     }
-    .resource-url a {
-      color: var(--text-muted);
-    }
-    .resource-url a:hover {
+    .domain-badge:hover {
       color: var(--brand);
+      border-color: var(--brand);
+      background: var(--surface);
+      text-decoration: none;
     }
+    .domain-badge .domain-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .domain-badge .external-icon {
+      font-size: 10px;
+      opacity: 0.7;
+      flex-shrink: 0;
+    }
+    .btn-copy-url {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      padding: 0;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all var(--transition);
+      flex-shrink: 0;
+    }
+    .btn-copy-url:hover {
+      color: var(--brand);
+      border-color: var(--brand);
+      background: var(--surface-2);
+    }
+    .btn-copy-url.copied {
+      color: var(--green);
+      border-color: var(--green);
+      background: var(--green-bg);
+    }
+
 
     /* ================================================================
        SIMPLIFIED BADGES
@@ -1207,6 +1263,36 @@
     }
 
     // ------------------------------------------------------------------
+    // Domain & Clipboard Utilities
+    // ------------------------------------------------------------------
+    function getDisplayDomain(url, fallbackDomain) {
+      if (fallbackDomain && typeof fallbackDomain === 'string' && fallbackDomain.trim()) {
+        const clean = fallbackDomain.trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+        if (clean) return clean;
+      }
+      if (!url) return 'Link';
+      try {
+        const parsed = new URL(url.startsWith('http') ? url : 'https://' + url);
+        return parsed.hostname.replace(/^www\./i, '');
+      } catch (e) {
+        return url.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0] || 'Link';
+      }
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '-9999px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch (err) {}
+      document.body.removeChild(ta);
+    }
+
+    // ------------------------------------------------------------------
     // Simplified Terminology Mappings (Sections 6, 7, 8, 9, 10)
     // ------------------------------------------------------------------
     function mapStatus(r) {
@@ -1575,6 +1661,7 @@
         const recommendation = mapRecommendation(r);
         const currentUrl = r.current_url || r.original_url;
         const title = r.page_title || r.step_description || r.anchor_text || '(Resource link)';
+        const domain = getDisplayDomain(currentUrl, r.source_domain);
 
         return `
           <tr data-idx="${realIdx}">
@@ -1586,9 +1673,18 @@
                 ${escHtml(title)}
                 ${r.pdf_url || r.pdf_validation_status === 'VALID_PDF' ? `<span class="badge-pdf ${r.pdf_magic_signature_verified ? 'verified' : ''}">📄 PDF ${r.pdf_magic_signature_verified ? '✓%PDF-' : ''}</span>` : ''}
               </span>
-              <span class="resource-url">
-                <a href="${escHtml(currentUrl)}" target="_blank" rel="noopener">${escHtml(currentUrl)}</a>
-              </span>
+              <div class="resource-url-row">
+                <a href="${escHtml(currentUrl)}" target="_blank" rel="noopener" class="domain-badge" title="Open full link: ${escHtml(currentUrl)}" onclick="event.stopPropagation()">
+                  <span class="domain-text">${escHtml(domain)}</span>
+                  <span class="external-icon">↗</span>
+                </a>
+                <button class="btn-copy-url" data-url="${escHtml(currentUrl)}" title="Copy full URL" aria-label="Copy full URL" type="button">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
             </td>
             <td class="col-status">
               <span class="badge ${status.badgeClass}">
@@ -1625,6 +1721,35 @@
             </td>
           </tr>`;
       }).join('');
+
+      // Wire Copy URL buttons
+      tbody.querySelectorAll('.btn-copy-url').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const urlToCopy = btn.dataset.url;
+          if (!urlToCopy) return;
+
+          const onSuccess = () => {
+            btn.classList.add('copied');
+            btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+            showToast('Copied full URL to clipboard', '📋');
+            setTimeout(() => {
+              btn.classList.remove('copied');
+              btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+            }, 2000);
+          };
+
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(urlToCopy).then(onSuccess).catch(() => {
+              fallbackCopy(urlToCopy);
+              onSuccess();
+            });
+          } else {
+            fallbackCopy(urlToCopy);
+            onSuccess();
+          }
+        });
+      });
 
       // Wire row click & View button
       tbody.querySelectorAll('.btn-view-drawer').forEach(btn => {
