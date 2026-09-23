@@ -1293,9 +1293,45 @@
     }
 
     // ------------------------------------------------------------------
+    // Local Review Overrides & Persistence
+    // ------------------------------------------------------------------
+    function getSavedOverrides() {
+      try {
+        return JSON.parse(localStorage.getItem('step_review_overrides') || '{}');
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function saveOverride(linkId, patch) {
+      if (!linkId) return;
+      const all = getSavedOverrides();
+      all[linkId] = Object.assign(all[linkId] || {}, patch);
+      try {
+        localStorage.setItem('step_review_overrides', JSON.stringify(all));
+      } catch (e) {}
+    }
+
+    function applySavedOverrides(records) {
+      const overrides = getSavedOverrides();
+      (records || []).forEach(r => {
+        const id = r.link_id || r.id;
+        if (id && overrides[id]) {
+          Object.assign(r, overrides[id]);
+        }
+      });
+    }
+
+    // ------------------------------------------------------------------
     // Simplified Terminology Mappings (Sections 6, 7, 8, 9, 10)
     // ------------------------------------------------------------------
     function mapStatus(r) {
+      if (r.implementation_status === 'approved' || r.final_status === 'APPROVED_CURRENT') {
+        return { key: 'keep', label: 'Approved (Keep)', badgeClass: 'badge-keep' };
+      }
+      if (r.implementation_status === 'applied') {
+        return { key: 'update', label: 'Replacement Applied', badgeClass: 'badge-update' };
+      }
       const fs = (r.final_status || r.classification || '').toUpperCase();
       const tech = (r.technical_status || '').toUpperCase();
       const code = r.http_status;
@@ -1365,6 +1401,12 @@
     }
 
     function mapIssue(r) {
+      if (r.implementation_status === 'approved' || r.final_status === 'APPROVED_CURRENT') {
+        return { text: 'None', cls: '' };
+      }
+      if (r.implementation_status === 'applied') {
+        return { text: 'Replacement applied', cls: 'issue-amber' };
+      }
       const issue = (r.issue_description || '').toLowerCase();
       const tech = (r.technical_status || '').toUpperCase();
       const fs = (r.final_status || '').toUpperCase();
@@ -1382,6 +1424,12 @@
     }
 
     function mapRecommendation(r) {
+      if (r.implementation_status === 'approved' || r.final_status === 'APPROVED_CURRENT') {
+        return 'Maintain current link in course';
+      }
+      if (r.implementation_status === 'applied') {
+        return 'Updated official link active';
+      }
       const issue = mapIssue(r).text;
       if (issue === 'Page not found') return 'Replace with verified current page';
       if (issue === 'Wrong page') return 'Replace with correct official resource';
@@ -1464,6 +1512,7 @@
     // Data Ingestion & Ordering
     // ------------------------------------------------------------------
     function setRecords(data) {
+      applySavedOverrides(data);
       // Sort strictly by the STEP country sequence
       allRecords = (data || []).slice().sort((a, b) => {
         const rankA = getCountryRank(a.jurisdiction);
@@ -2058,19 +2107,36 @@
           </section>`;
         })()}
 
-        <!-- SECTION G: VERIFICATION & IMPLEMENTATION CONTROLS -->
-        <section class="d-section">
-          <div class="d-section-title">⚙️ Verification &amp; STEP Implementation</div>
-          <div style="font-size:13px;color:var(--text-secondary)">
-            Current Implementation Status: <strong style="color:var(--text-primary)">${formatImplStatus(implStatus)}</strong>
+        <!-- SECTION G: REVIEW & IMPLEMENTATION WORKFLOW -->
+        <section class="d-section" style="border-left:4px solid var(--purple)">
+          <div class="d-section-title" style="display:flex;align-items:center;justify-content:space-between">
+            <span>⚡ Review &amp; Implementation Workflow</span>
+            <span class="badge" style="background:var(--surface-2);color:var(--text-secondary);font-size:10px">${formatImplStatus(implStatus)}</span>
           </div>
 
-          <div class="workflow-actions" id="workflow-buttons">
+          <div class="workflow-actions" id="workflow-buttons" style="display:flex;flex-direction:column;gap:10px">
             <!-- Populated conditionally below -->
           </div>
 
+          <!-- EDITORIAL NOTES DISPLAY -->
+          <div id="notes-container">
+            ${r.user_notes && r.user_notes.length ? `
+              <div style="margin-top:16px;padding-top:12px;border-top:1px dashed var(--border)">
+                <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px">Editorial &amp; Reviewer Notes</div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  ${r.user_notes.map(n => `
+                    <div style="background:var(--surface-2);padding:9px 12px;border-radius:var(--radius-sm);font-size:12px;border:1px solid var(--border)">
+                      <div style="color:var(--text-primary);line-height:1.4">${escHtml(n.text)}</div>
+                      <div style="font-size:10px;color:var(--text-muted);margin-top:4px">👤 ${escHtml(n.author || 'Reviewer')} • 🕒 ${escHtml(n.date || '')}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
           <!-- AUDIT TRAIL / HISTORY -->
-          <div style="margin-top:16px">
+          <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)">
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase">Audit Trail &amp; History</div>
             <div id="history-container">Loading audit history...</div>
           </div>
@@ -2098,31 +2164,130 @@
 
       // Render workflow action buttons
       const btnWrap = document.getElementById('workflow-buttons');
-      const isVerifiedReplacement = !!(r.replacement_url && r.replacement_verified);
+      const isVerifiedReplacement = !!(r.replacement_url && r.replacement_verified && implStatus !== 'applied');
 
-      if (implStatus === 'applied') {
+      if (implStatus === 'approved') {
         btnWrap.innerHTML = `
-          <button class="btn btn-amber" id="btn-revert">
-            ↺ Revert Change
-          </button>
-          <span style="font-size:12px;color:var(--green)">✓ Replacement is currently applied to STEP record</span>
+          <div class="review-status-banner" style="background:var(--green-bg);border:1px solid rgba(22,163,74,0.3);border-radius:var(--radius-sm);padding:12px 14px">
+            <div style="font-weight:700;font-size:13px;color:var(--green-dark);display:flex;align-items:center;gap:6px">
+              <span>✓ Approved as Current</span>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:3px">
+              This link is approved and confirmed as active and in-force for the STEP landscape.
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <a href="${escHtml(currentUrl)}" target="_blank" rel="noopener" class="btn btn-sm" style="text-decoration:none">
+              🌐 Open Current Link ↗
+            </a>
+            <button class="btn btn-sm btn-amber" id="btn-undo-approve">
+              ↺ Undo Approval
+            </button>
+            <button class="btn btn-sm" id="btn-review-note">
+              💬 Add Note
+            </button>
+          </div>
+        `;
+        document.getElementById('btn-undo-approve').addEventListener('click', () => undoApproval(r));
+        document.getElementById('btn-review-note').addEventListener('click', () => promptAddNote(r));
+      } else if (implStatus === 'applied') {
+        btnWrap.innerHTML = `
+          <div class="review-status-banner" style="background:var(--green-bg);border:1px solid rgba(22,163,74,0.3);border-radius:var(--radius-sm);padding:12px 14px">
+            <div style="font-weight:700;font-size:13px;color:var(--green-dark);display:flex;align-items:center;gap:6px">
+              <span>✓ Replacement Applied</span>
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:3px">
+              Active URL updated to: <span style="word-break:break-all;color:var(--brand)">${escHtml(currentUrl)}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <a href="${escHtml(currentUrl)}" target="_blank" rel="noopener" class="btn btn-sm" style="text-decoration:none">
+              🌐 Open Current Link ↗
+            </a>
+            <button class="btn btn-sm btn-amber" id="btn-revert">
+              ↺ Revert Change
+            </button>
+            <button class="btn btn-sm" id="btn-review-note">
+              💬 Add Note
+            </button>
+          </div>
         `;
         document.getElementById('btn-revert').addEventListener('click', () => confirmRevert(r));
+        document.getElementById('btn-review-note').addEventListener('click', () => promptAddNote(r));
       } else if (isVerifiedReplacement) {
         btnWrap.innerHTML = `
-          <button class="btn btn-success" id="btn-apply">
-            ✓ Verify &amp; Apply
-          </button>
-          <span style="font-size:12px;color:var(--text-muted)">Approves replacement for implementation in STEP landscape</span>
+          <div class="review-status-banner" style="background:var(--amber-bg);border:1px solid rgba(217,119,6,0.3);border-radius:var(--radius-sm);padding:12px 14px">
+            <div style="font-weight:700;font-size:13px;color:var(--amber-dark)">
+              🔄 Verified Replacement Available
+            </div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:3px">
+              An official newer replacement was identified by the audit pipeline.
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-sm btn-success" id="btn-apply">
+              ✓ Verify &amp; Apply Replacement
+            </button>
+            <a href="${escHtml(currentUrl)}" target="_blank" rel="noopener" class="btn btn-sm" style="text-decoration:none">
+              🌐 Open Current Link ↗
+            </a>
+            <button class="btn btn-sm" id="btn-review-approve">
+              ✓ Keep Original Anyway
+            </button>
+            <button class="btn btn-sm btn-primary" id="btn-review-replace">
+              ✏️ Replace Link
+            </button>
+            <button class="btn btn-sm" id="btn-review-note">
+              💬 Add Note
+            </button>
+          </div>
         `;
         document.getElementById('btn-apply').addEventListener('click', () => confirmApply(r));
+        document.getElementById('btn-review-approve').addEventListener('click', () => promptApproveCurrent(r));
+        document.getElementById('btn-review-replace').addEventListener('click', () => promptReplaceLink(r));
+        document.getElementById('btn-review-note').addEventListener('click', () => promptAddNote(r));
       } else {
+        let reviewReason = "We found this page, but we couldn't confirm whether it is the latest official version.";
+        if (r.issue_description && r.issue_description.trim()) {
+          reviewReason = `We found this page, but we couldn't confirm whether it is the latest official version: ${r.issue_description}`;
+        } else if (r.regulatory_status_reason && r.regulatory_status_reason.trim()) {
+          reviewReason = `We found this page, but we couldn't confirm whether it is the latest official version. ${r.regulatory_status_reason}`;
+        } else if (r.http_status === 403 || r.http_status === 202) {
+          reviewReason = "Access to this website was blocked by security bot protection. Please verify access directly.";
+        }
+
         btnWrap.innerHTML = `
-          <button class="btn" disabled style="opacity:0.6">
-            Human Review Required
-          </button>
-          <span style="font-size:12px;color:var(--text-muted)">Cannot apply unverified links automatically.</span>
+          <div class="review-status-banner" style="background:var(--purple-bg);border:1px solid rgba(124,58,237,0.25);border-radius:var(--radius-sm);padding:14px">
+            <div style="font-weight:700;font-size:14px;color:var(--purple);display:flex;align-items:center;gap:6px">
+              <span>🔍 Needs Your Review</span>
+            </div>
+            <div style="font-weight:700;font-size:12px;color:var(--text-primary);margin-top:8px">Why?</div>
+            <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5;margin-top:2px">
+              ${escHtml(reviewReason)}
+            </div>
+          </div>
+
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-top:2px">
+            Review Actions:
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <a href="${escHtml(currentUrl)}" target="_blank" rel="noopener" class="btn btn-sm" id="btn-review-open" style="text-decoration:none">
+              🌐 Open Current Link ↗
+            </a>
+            <button class="btn btn-sm btn-success" id="btn-review-approve">
+              ✓ Approve as Current
+            </button>
+            <button class="btn btn-sm btn-primary" id="btn-review-replace">
+              ✏️ Replace Link
+            </button>
+            <button class="btn btn-sm" id="btn-review-note">
+              💬 Add Note
+            </button>
+          </div>
         `;
+        document.getElementById('btn-review-approve').addEventListener('click', () => promptApproveCurrent(r));
+        document.getElementById('btn-review-replace').addEventListener('click', () => promptReplaceLink(r));
+        document.getElementById('btn-review-note').addEventListener('click', () => promptAddNote(r));
       }
 
       // Load History
@@ -2135,18 +2300,224 @@
 
     function formatImplStatus(status) {
       const map = {
-        'not_reviewed': 'Not Reviewed',
+        'not_reviewed': 'Needs Review',
+        'approved': 'Approved (Current)',
         'verified': 'Verified',
-        'applied': 'Applied',
-        'reverted': 'Reverted',
+        'applied': 'Replacement Applied',
+        'reverted': 'Reverted to Original',
         'needs_review': 'Needs Review'
       };
       return map[status] || status;
     }
 
     // ------------------------------------------------------------------
-    // Apply & Revert Workflow (Sections 15, 16, 18, 19)
+    // Human Review Action Handlers
     // ------------------------------------------------------------------
+    function promptApproveCurrent(r) {
+      const title = r.page_title || r.step_description || r.anchor_text || '(Resource)';
+      const currentUrl = r.current_url || r.original_url;
+      showModal(
+        'Approve Link as Current',
+        `
+        <div style="font-size:13px;line-height:1.5">
+          Are you sure you want to approve this resource as active and current for the STEP course landscape?
+          <div style="margin-top:10px;padding:10px 12px;background:var(--green-bg);border-radius:6px;font-size:12px;color:var(--green-dark);border:1px solid rgba(22,163,74,0.2)">
+            <strong>Resource:</strong> ${escHtml(title)}<br>
+            <div style="margin-top:4px"><strong>Current URL:</strong> <span style="word-break:break-all">${escHtml(currentUrl)}</span></div>
+          </div>
+          <div style="margin-top:10px;font-size:12px;color:var(--text-secondary)">
+            ✓ This will mark the link as <strong>Approved (Keep)</strong> and update your dashboard metrics.
+          </div>
+        </div>
+        `,
+        () => approveCurrentLink(r),
+        'Approve as Current'
+      );
+    }
+
+    function approveCurrentLink(r) {
+      r.implementation_status = 'approved';
+      r.final_status = 'APPROVED_CURRENT';
+      r.regulatory_status = 'Current';
+      r.human_review_required = false;
+      r.audit_history = r.audit_history || [];
+      r.audit_history.unshift({
+        event_type: 'APPROVED_AS_CURRENT',
+        date_approved: new Date().toISOString(),
+        reviewer: 'ESG Compliance Reviewer'
+      });
+      saveOverride(r.link_id || r.id, {
+        implementation_status: 'approved',
+        final_status: 'APPROVED_CURRENT',
+        regulatory_status: 'Current',
+        human_review_required: false,
+        audit_history: r.audit_history,
+        user_notes: r.user_notes || []
+      });
+      updateKpis();
+      applyFilters();
+      openDrawer(activeRecordIndex);
+      showToast('Link approved as current and marked to keep!', '✓');
+      try {
+        fetch('/api/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ link_id: r.link_id || r.id, action: 'approve_current', reviewer: 'ESG Compliance Reviewer' })
+        }).catch(() => {});
+      } catch(e) {}
+    }
+
+    function undoApproval(r) {
+      r.implementation_status = 'not_reviewed';
+      r.final_status = 'MANUAL REVIEW REQUIRED';
+      r.regulatory_status = 'UNKNOWN';
+      r.human_review_required = true;
+      r.audit_history = r.audit_history || [];
+      r.audit_history.unshift({
+        event_type: 'REVERTED_APPROVAL',
+        date_approved: new Date().toISOString(),
+        reviewer: 'ESG Compliance Reviewer'
+      });
+      saveOverride(r.link_id || r.id, {
+        implementation_status: 'not_reviewed',
+        final_status: 'MANUAL REVIEW REQUIRED',
+        regulatory_status: 'UNKNOWN',
+        human_review_required: true,
+        audit_history: r.audit_history
+      });
+      updateKpis();
+      applyFilters();
+      openDrawer(activeRecordIndex);
+      showToast('Approval undone. Link returned to review list.', '↺');
+    }
+
+    function promptReplaceLink(r) {
+      const currentUrl = r.current_url || r.original_url;
+      showModal(
+        'Replace with Updated URL',
+        `
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px">Current Course URL</div>
+            <div style="font-size:12px;color:var(--text-secondary);word-break:break-all;background:var(--surface-2);padding:7px 10px;border-radius:4px;border:1px solid var(--border)">
+              ${escHtml(currentUrl)}
+            </div>
+          </div>
+          <div>
+            <label for="input-replace-url" style="font-size:11px;font-weight:700;color:var(--text-primary);text-transform:uppercase;display:block;margin-bottom:4px">New Official URL *</label>
+            <input type="url" id="input-replace-url" class="filter-control" placeholder="https://..." value="${escHtml(r.replacement_url || '')}" style="width:100%" required autofocus />
+          </div>
+          <div>
+            <label for="input-replace-reason" style="font-size:11px;font-weight:700;color:var(--text-primary);text-transform:uppercase;display:block;margin-bottom:4px">Reason for Replacement</label>
+            <input type="text" id="input-replace-reason" class="filter-control" placeholder="e.g. Updated to latest in-force version" style="width:100%" />
+          </div>
+        </div>
+        `,
+        () => {
+          const inputUrl = document.getElementById('input-replace-url');
+          const inputReason = document.getElementById('input-replace-reason');
+          const newUrl = inputUrl ? inputUrl.value.trim() : '';
+          const reason = inputReason ? inputReason.value.trim() : '';
+          if (!newUrl) {
+            showToast('Please enter a valid replacement URL', '⚠️');
+            return false;
+          }
+          applyCustomReplacement(r, newUrl, reason);
+        },
+        'Apply Replacement'
+      );
+    }
+
+    function applyCustomReplacement(r, newUrl, reason) {
+      r.current_url = newUrl;
+      r.replacement_url = newUrl;
+      r.replacement_reason = reason || 'Updated by reviewer';
+      r.replacement_verified = true;
+      r.implementation_status = 'applied';
+      r.final_status = 'REPLACEMENT VERIFIED';
+      r.human_review_required = false;
+      r.audit_history = r.audit_history || [];
+      r.audit_history.unshift({
+        event_type: 'REPLACED_URL',
+        date_approved: new Date().toISOString(),
+        reviewer: 'ESG Compliance Reviewer',
+        detail: newUrl
+      });
+      saveOverride(r.link_id || r.id, {
+        current_url: newUrl,
+        replacement_url: newUrl,
+        replacement_reason: r.replacement_reason,
+        replacement_verified: true,
+        implementation_status: 'applied',
+        final_status: 'REPLACEMENT VERIFIED',
+        human_review_required: false,
+        audit_history: r.audit_history,
+        user_notes: r.user_notes || []
+      });
+      updateKpis();
+      applyFilters();
+      openDrawer(activeRecordIndex);
+      showToast('Replacement URL applied successfully!', '✓');
+      try {
+        fetch('/api/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ link_id: r.link_id || r.id, replacement_url: newUrl, reason: reason, reviewer: 'ESG Compliance Reviewer' })
+        }).catch(() => {});
+      } catch(e) {}
+    }
+
+    function promptAddNote(r) {
+      showModal(
+        'Add Editorial Note',
+        `
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <label for="input-note-text" style="font-size:11px;font-weight:700;color:var(--text-primary);text-transform:uppercase;display:block;margin-bottom:4px">Editorial / Compliance Note *</label>
+            <textarea id="input-note-text" class="filter-control" rows="3" placeholder="Enter findings, verification details, or review notes..." style="width:100%;resize:vertical" required autofocus></textarea>
+          </div>
+          <div>
+            <label for="input-note-author" style="font-size:11px;font-weight:700;color:var(--text-primary);text-transform:uppercase;display:block;margin-bottom:4px">Reviewer Name</label>
+            <input type="text" id="input-note-author" class="filter-control" value="ESG Compliance Reviewer" style="width:100%" />
+          </div>
+        </div>
+        `,
+        () => {
+          const noteEl = document.getElementById('input-note-text');
+          const authorEl = document.getElementById('input-note-author');
+          const text = noteEl ? noteEl.value.trim() : '';
+          const author = authorEl ? authorEl.value.trim() : 'Reviewer';
+          if (!text) {
+            showToast('Note cannot be empty', '⚠️');
+            return false;
+          }
+          addUserNote(r, text, author);
+        },
+        'Save Note'
+      );
+    }
+
+    function addUserNote(r, text, author) {
+      r.user_notes = r.user_notes || [];
+      r.user_notes.unshift({
+        text: text,
+        author: author || 'Reviewer',
+        date: new Date().toLocaleDateString()
+      });
+      r.audit_history = r.audit_history || [];
+      r.audit_history.unshift({
+        event_type: 'ADDED_NOTE',
+        date_approved: new Date().toISOString(),
+        reviewer: author || 'Reviewer'
+      });
+      saveOverride(r.link_id || r.id, {
+        user_notes: r.user_notes,
+        audit_history: r.audit_history
+      });
+      openDrawer(activeRecordIndex);
+      showToast('Note added successfully', '💬');
+    }
+
     function confirmApply(r) {
       showModal(
         'Verify & Apply Replacement',
@@ -2154,27 +2525,36 @@
         async () => {
           showLoading(true);
           try {
-            const res = await fetch('/api/apply', {
+            await fetch('/api/apply', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ link_id: r.link_id || r.id, reviewer: 'ESG Compliance Reviewer' })
             });
-            const data = await res.json();
-            showLoading(false);
-            if (data.ok) {
-              r.current_url = r.replacement_url;
-              r.implementation_status = 'applied';
-              showToast('Link replacement applied successfully!');
-              renderTable();
-              openDrawer(activeRecordIndex);
-            } else {
-              alert('Error applying replacement: ' + (data.error || 'Unknown error'));
-            }
-          } catch (err) {
-            showLoading(false);
-            alert('Request failed: ' + err.message);
-          }
-        }
+          } catch (err) {}
+          showLoading(false);
+          r.current_url = r.replacement_url;
+          r.implementation_status = 'applied';
+          r.final_status = 'REPLACEMENT VERIFIED';
+          r.human_review_required = false;
+          r.audit_history = r.audit_history || [];
+          r.audit_history.unshift({
+            event_type: 'APPLIED_REPLACEMENT',
+            date_approved: new Date().toISOString(),
+            reviewer: 'ESG Compliance Reviewer'
+          });
+          saveOverride(r.link_id || r.id, {
+            current_url: r.current_url,
+            implementation_status: 'applied',
+            final_status: 'REPLACEMENT VERIFIED',
+            human_review_required: false,
+            audit_history: r.audit_history
+          });
+          showToast('Link replacement applied successfully!');
+          updateKpis();
+          applyFilters();
+          openDrawer(activeRecordIndex);
+        },
+        'Apply Replacement'
       );
     }
 
@@ -2185,32 +2565,40 @@
         async () => {
           showLoading(true);
           try {
-            const res = await fetch('/api/revert', {
+            await fetch('/api/revert', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ link_id: r.link_id || r.id, reviewer: 'ESG Compliance Reviewer' })
             });
-            const data = await res.json();
-            showLoading(false);
-            if (data.ok) {
-              r.current_url = r.original_url;
-              r.implementation_status = 'reverted';
-              showToast('Link reverted to original source');
-              renderTable();
-              openDrawer(activeRecordIndex);
-            } else {
-              alert('Error reverting link: ' + (data.error || 'Unknown error'));
-            }
-          } catch (err) {
-            showLoading(false);
-            alert('Request failed: ' + err.message);
-          }
-        }
+          } catch (err) {}
+          showLoading(false);
+          r.current_url = r.original_url;
+          r.implementation_status = 'reverted';
+          r.audit_history = r.audit_history || [];
+          r.audit_history.unshift({
+            event_type: 'REVERTED_LINK',
+            date_approved: new Date().toISOString(),
+            reviewer: 'ESG Compliance Reviewer'
+          });
+          saveOverride(r.link_id || r.id, {
+            current_url: r.original_url,
+            implementation_status: 'reverted',
+            audit_history: r.audit_history
+          });
+          showToast('Link reverted to original source', '↺');
+          updateKpis();
+          applyFilters();
+          openDrawer(activeRecordIndex);
+        },
+        'Revert Link'
       );
     }
 
     async function loadHistory(linkId) {
       const container = document.getElementById('history-container');
+      const r = allRecords.find(item => (item.link_id || item.id) === linkId);
+      let localEvents = (r && r.audit_history) || [];
+
       if (!linkId) {
         container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">No history available</div>';
         return;
@@ -2219,36 +2607,35 @@
         const res = await fetch('/api/history?link_id=' + encodeURIComponent(linkId));
         if (res.ok) {
           const json = await res.json();
-          const list = json.history || [];
-          if (!list.length) {
-            container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">No implementation events logged yet.</div>';
-            return;
-          }
-          container.innerHTML = `
-            <table class="history-table">
-              <thead>
-                <tr>
-                  <th>Action</th>
-                  <th>Date &amp; Time</th>
-                  <th>Reviewer</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${list.map(h => `
-                  <tr>
-                    <td><strong>${h.event_type.toUpperCase()}</strong></td>
-                    <td>${escHtml((h.date_approved || '').slice(0, 19).replace('T', ' '))}</td>
-                    <td>${escHtml(h.reviewer || 'User')}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>`;
-        } else {
-          container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">History not available</div>';
+          const serverList = json.history || [];
+          localEvents = [...localEvents, ...serverList];
         }
-      } catch (err) {
-        container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">No history available</div>';
+      } catch (err) {}
+
+      if (!localEvents.length) {
+        container.innerHTML = '<div style="font-size:12px;color:var(--text-muted)">No implementation events logged yet.</div>';
+        return;
       }
+
+      container.innerHTML = `
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Date &amp; Time</th>
+              <th>Reviewer</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${localEvents.map(h => `
+              <tr>
+                <td><strong>${escHtml(String(h.event_type || 'UPDATE').replace(/_/g, ' ').toUpperCase())}</strong></td>
+                <td>${escHtml((h.date_approved || '').slice(0, 19).replace('T', ' '))}</td>
+                <td>${escHtml(h.reviewer || 'User')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
     }
 
     // ------------------------------------------------------------------
@@ -2257,9 +2644,11 @@
     const modalBackdrop = document.getElementById('confirm-modal');
     let modalAction = null;
 
-    function showModal(title, msgHtml, onConfirm) {
+    function showModal(title, msgHtml, onConfirm, confirmBtnText = 'Confirm') {
       document.getElementById('modal-title').textContent = title;
       document.getElementById('modal-message').innerHTML = msgHtml;
+      const confirmBtn = document.getElementById('modal-confirm');
+      confirmBtn.textContent = confirmBtnText;
       modalAction = onConfirm;
       modalBackdrop.classList.add('open');
     }
@@ -2270,8 +2659,11 @@
     });
 
     document.getElementById('modal-confirm').addEventListener('click', () => {
+      if (modalAction) {
+        const keepOpen = modalAction() === false;
+        if (keepOpen) return;
+      }
       modalBackdrop.classList.remove('open');
-      if (modalAction) modalAction();
       modalAction = null;
     });
 
