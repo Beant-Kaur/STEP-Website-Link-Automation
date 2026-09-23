@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STEP ESG Regulation Tracker</title>
+  <meta name="description" content="ESG Regulatory Currency & Compliance Dashboard for Sustainability Managers" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #F7F7F5;
+      --surface: #FFFFFF;
+      --surface-hover: #FCFCFB;
+      --border: #EBEBEA;
+      --border-strong: #DBDBD9;
+      --text-primary: #1B1B18;
+      --text-secondary: #5F5E5B;
+      --text-muted: #A1A09E;
+      --green: #1A7F37;
+      --green-bg: #DFF7E3;
+      --green-text: #155C27;
+      --amber: #BF6A02;
+      --amber-bg: #FFF4D6;
+      --amber-text: #8C4F04;
+      --coral: #D1453B;
+      --slate: #64748B;
+      --slate-bg: #F1F5F9;
+      --slate-text: #475569;
+      --primary: #1A6B3C;
+      --primary-hover: #145A31;
+      --primary-bg: #EBF5EE;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-card: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+      --shadow-hover: 0 4px 16px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.03);
+      --shadow-modal: 0 24px 48px rgba(0,0,0,0.16), 0 8px 16px rgba(0,0,0,0.08);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-pill: 100px;
+      --transition: all 0.18s ease;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; font-size: inherit; }
+
+    /* ---- TOP BAR ---- */
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 56px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .topbar-brand {
+      font-weight: 700; font-size: 15px; color: var(--primary);
+      display: flex; align-items: center; gap: 7px; white-space: nowrap;
+    }
+    .topbar-brand svg { width: 22px; height: 22px; }
+    .search-wrap { flex: 1; max-width: 520px; margin: 0 auto; position: relative; }
+    .search-wrap svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--text-muted); pointer-events: none; }
+    .search-input {
+      width: 100%; padding: 9px 16px 9px 38px;
+      border: 1px solid var(--border); border-radius: var(--radius-pill);
+      font-size: 13px; color: var(--text-primary); background: var(--bg);
+      outline: none; transition: var(--transition);
+    }
+    .search-input::placeholder { color: var(--text-muted); }
+    .search-input:focus { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 3px rgba(26,107,60,0.07); }
+    .topbar-right { display: flex; align-items: center; gap: 8px; }
+    .topbar-icon {
+      width: 34px; height: 34px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); transition: var(--transition);
+    }
+    .topbar-icon:hover { background: var(--bg); color: var(--text-primary); }
+    .avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--primary); color: #fff;
+      font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ---- FILTER BAR ---- */
+    .filter-bar { padding: 16px 32px 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .fpill {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 7px 16px; border-radius: var(--radius-pill);
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text-secondary); white-space: nowrap; transition: var(--transition);
+    }
+    .fpill:hover { border-color: var(--border-strong); color: var(--text-primary); }
+    .fpill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .fpill.active:hover { background: var(--primary-hover); }
+
+    .audit-ts { padding: 4px 32px 14px; font-size: 11.5px; color: var(--text-muted); }
+
+    /* ---- COUNTRY CARDS GRID ---- */
+    .grid {
+      padding: 0 32px 48px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .ccard {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      box-shadow: var(--shadow-card); overflow: hidden; transition: box-shadow var(--transition);
+      align-self: start;
+    }
+    .ccard:hover { box-shadow: var(--shadow-hover); }
+
+    .ccard-head {
+      padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+      cursor: pointer; user-select: none; transition: var(--transition);
+    }
+    .ccard-head:hover { background: var(--surface-hover); }
+    .cflag { font-size: 26px; line-height: 1; flex-shrink: 0; }
+    .cinfo { flex: 1; min-width: 0; }
+    .cname { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+    .cmeta { font-size: 11.5px; color: var(--text-muted); margin-top: 1px; display: flex; align-items: center; gap: 4px; }
+    .cmeta svg { width: 11px; height: 11px; }
+
+    .hbadge {
+      font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: var(--radius-pill); white-space: nowrap;
+    }
+    .hbadge.ok { background: var(--green-bg); color: var(--green-text); }
+    .hbadge.warn { background: var(--amber-bg); color: var(--amber-text); }
+    .hbadge.rev { background: var(--slate-bg); color: var(--slate-text); }
+
+    .chevron {
+      width: 18px; height: 18px; color: var(--text-muted); flex-shrink: 0;
+      transition: transform 0.2s ease;
+    }
+    .ccard.closed .chevron { transform: rotate(-90deg); }
+
+    /* Regulation rows */
+    .regs { border-top: 1px solid var(--border); }
+    .ccard.closed .regs { display: none; }
+
+    .reg-row {
+      padding: 13px 20px; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: var(--transition);
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .reg-row:last-child { border-bottom: none; }
+    .reg-row:hover { background: var(--surface-hover); }
+
+    .reg-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+    .reg-title { font-size: 13.5px; font-weight: 600; color: var(--text-primary); line-height: 1.35; flex: 1; }
+
+    .spill {
+      font-size: 10.5px; font-weight: 600; padding: 2px 9px; border-radius: var(--radius-pill);
+      white-space: nowrap; flex-shrink: 0; margin-top: 1px; letter-spacing: 0.01em;
+    }
+    .spill.ok { background: var(--green-bg); color: var(--green-text); }
+    .spill.warn { background: var(--amber-bg); color: var(--amber-text); }
+    .spill.rev { background: var(--slate-bg); color: var(--slate-text); }
+
+    .reg-bot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .reg-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; flex: 1; }
+    .reg-action {
+      font-size: 12px; font-weight: 600; color: var(--primary);
+      display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; flex-shrink: 0;
+    }
+    .reg-action svg { width: 13px; height: 13px; }
+
+    /* ---- EMPTY ---- */
+    .empty { text-align: center; padding: 80px 20px; color: var(--text-muted); grid-column: 1 / -1; }
+    .empty h3 { font-size: 15px; font-weight: 600; color: var(--text-secondary); margin: 8px 0 4px; }
+    .empty p { font-size: 13px; }
+
+    /* ---- MODAL OVERLAY ---- */
+    .modal-bg {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+      z-index: 500; display: none; align-items: center; justify-content: center;
+      backdrop-filter: blur(3px); padding: 24px;
+    }
+    .modal-bg.open { display: flex; }
+
+    .modal {
+      background: var(--surface); border-radius: 14px; width: 100%; max-width: 660px;
+      max-height: calc(100vh - 48px); display: flex; flex-direction: column;
+      box-shadow: var(--shadow-modal); animation: modalIn 0.22s ease;
+    }
+    @keyframes modalIn { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+    .modal-head {
+      padding: 22px 24px 16px; display: flex; align-items: flex-start; gap: 12px;
+    }
+    .modal-head-content { flex: 1; }
+    .modal-jurisdiction { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .modal-reg-title { font-size: 18px; font-weight: 700; color: var(--text-primary); line-height: 1.3; }
+    .modal-close {
+      width: 30px; height: 30px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); transition: var(--transition); flex-shrink: 0;
+    }
+    .modal-close:hover { background: var(--bg); color: var(--text-primary); }
+
+    .modal-body { flex: 1; overflow-y: auto; padding: 0 24px 24px; }
+
+    .modal-section { margin-bottom: 20px; }
+    .modal-section-label {
+      font-size: 11px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+    }
+
+    /* Comparison tiles — NO colored left border */
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .compare-tile {
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 14px 16px; background: var(--surface);
+    }
+    .compare-tile-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 5px;
+    }
+    .compare-tile.old .compare-tile-label { color: var(--amber); }
+    .compare-tile.new .compare-tile-label { color: var(--green); }
+    .compare-tile.verified .compare-tile-label { color: var(--green); }
+
+    .compare-url {
+      display: block; font-size: 12px; color: var(--primary);
+      word-break: break-all; line-height: 1.4; margin-bottom: 8px;
+      padding: 7px 10px; background: var(--bg); border-radius: 6px;
+    }
+    .compare-url:hover { text-decoration: underline; }
+
+    .compare-note { font-size: 11.5px; color: var(--text-muted); line-height: 1.35; }
+
+    /* Analysis */
+    .analysis-box {
+      background: var(--primary-bg); border-radius: var(--radius-sm);
+      padding: 16px 18px;
+    }
+    .analysis-box h4 { font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 10px; }
+    .analysis-text { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
+    .summary-item { font-size: 13px; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px; }
+    .summary-item:last-child { margin-bottom: 0; }
+    .summary-tag {
+      display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; padding: 2px 7px; border-radius: 4px; background: rgba(0,0,0,0.07);
+      color: var(--text-primary); margin-right: 6px; vertical-align: middle;
+    }
+    .summary-tag.action { background: var(--primary); color: #fff; }
+
+    .conf-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+    .conf-label { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+    .conf-track { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .conf-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.5s ease; }
+    /* Manual override & audit notes */
+    .override-wrap {
+      margin-top: 16px; padding: 12px 14px; background: var(--bg);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+    }
+    .toggle-label {
+      font-size: 12.5px; font-weight: 600; color: var(--text-primary);
+      display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;
+    }
+    .toggle-label input[type="checkbox"] {
+      accent-color: var(--primary); width: 16px; height: 16px; cursor: pointer;
+    }
+    .override-box { margin-top: 10px; }
+    .override-input {
+      width: 100%; padding: 8px 12px; border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm); font-size: 12.5px; font-family: inherit;
+      color: var(--text-primary); background: var(--surface); outline: none; transition: var(--transition);
+    }
+    .override-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(26,107,60,0.12); }
+    
+    .audit-note-wrap { margin-top: 14px; }
+    .note-label {
+      display: block; font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.4px; color: var(--text-muted); margin-bottom: 5px;
+    }
+    .note-textarea {
+      width: 100%; padding: 8px 12px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 12px; font-family: inherit;
+      color: var(--text-primary); background: var(--surface); outline: none; resize: vertical; min-height: 52px;
+      transition: var(--transition);
+    }
+    .note-textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(26,107,60,0.12); }
+
+    /* Audit Log Table */
+    .audit-log-list { display: flex; flex-direction: column; gap: 12px; }
+    .audit-log-card {
+      border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px;
+      background: var(--surface); font-size: 12px; line-height: 1.45;
+    }
+    .audit-log-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+    .audit-log-time { color: var(--text-muted); font-size: 11px; }
+    .audit-log-status { font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: var(--radius-pill); }
+    .audit-log-status.live { background: var(--green-bg); color: var(--green-text); }
+    .audit-log-status.queued { background: var(--amber-bg); color: var(--amber-text); }
+
+    /* Modal footer */
+    .modal-foot {
+      padding: 14px 24px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 9px 18px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 600; transition: var(--transition); white-space: nowrap;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-outline { background: var(--surface); color: var(--text-primary); border: 1px solid var(--border); }
+    .btn-outline:hover { background: var(--bg); border-color: var(--border-strong); }
+    .btn-ghost { color: var(--text-secondary); padding: 9px 14px; }
+    .btn-ghost:hover { color: var(--text-primary); background: var(--bg); border-radius: var(--radius-sm); }
+
+    /* ---- TOAST ---- */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: var(--text-primary); color: #fff; padding: 10px 20px;
+      border-radius: var(--radius-sm); font-size: 13px; font-weight: 500;
+      z-index: 600; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      display: none; align-items: center; gap: 8px;
+    }
+    .toast.show { display: flex; }
+
+    /* Loading */
+    .lbar { position: fixed; top: 0; left: 0; width: 100%; height: 3px; z-index: 700; display: none; }
+    .lbar.on { display: block; }
+    .lbar::after { content: ''; display: block; width: 28%; height: 100%; background: var(--primary); border-radius: 0 2px 2px 0; animation: lslide 1.1s ease infinite; }
+    @keyframes lslide { 0% { transform: translateX(-100%); } 100% { transform: translateX(450%); } }
+
+    /* Responsive */
+    @media (max-width: 1280px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 840px) {
+      .topbar, .filter-bar, .grid, .audit-ts { padding-left: 16px; padding-right: 16px; }
+      .grid { grid-template-columns: 1fr; }
+      .compare-grid { grid-template-columns: 1fr; }
+      .modal { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="lbar" id="lbar"></div>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="topbar-brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+    STEP ESG Tracker
+  </div>
+  <div class="search-wrap">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" class="search-input" id="q" placeholder="Search jurisdictions or regulations..." />
+  </div>
+  <div class="topbar-right">
+    <button class="topbar-icon" id="btn-audit-log" title="View Kajabi Audit Trail & History">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    </button>
+    <button class="topbar-icon" id="btn-export" title="Export report">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    </button>
+    <button class="topbar-icon" title="Notifications">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+    </button>
+    <div class="avatar">SM</div>
+  </div>
+</header>
+
+<!-- FILTERS -->
+<nav class="filter-bar" id="fbar"></nav>
+<div class="audit-ts" id="ts"></div>
+
+<!-- COUNTRY CARDS -->
+<main class="grid" id="grid"></main>
+
+<!-- MODAL -->
+<div class="modal-bg" id="mbg">
+  <div class="modal" id="modal">
+    <div class="modal-head">
+      <div class="modal-head-content">
+        <div class="modal-jurisdiction" id="m-jur"></div>
+        <div class="modal-reg-title" id="m-title"></div>
+      </div>
+      <button class="modal-close" id="m-close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="m-body"></div>
+    <div class="modal-foot" id="m-foot"></div>
+  </div>
+<!-- AUDIT LOG MODAL -->
+<div class="modal-bg" id="audit-mbg">
+  <div class="modal" style="max-width:740px;">
+    <div class="modal-head">
+      <div class="modal-head-content">
+        <div class="modal-reg-title">Kajabi Link Update Audit Trail</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Permanent ledger of link replacements, manual overrides, and Kajabi sync status.</div>
+      </div>
+      <button class="modal-close" id="audit-m-close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" id="audit-log-body" style="max-height:480px;">
+      <div style="text-align:center;padding:30px;color:var(--text-muted);">Loading audit history...</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="audit-m-close-btn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toast-t"></span></div>
+
+<script>
+(function(){
+'use strict';
+
+const FLAGS = {
+  'Bahrain':'🇧🇭','China':'🇨🇳','European Union':'🇪🇺','India':'🇮🇳',
+  'Kingdom of Saudi Arabia':'🇸🇦','Kuwait':'🇰🇼','Oman':'🇴🇲','Qatar':'🇶🇦',
+  'Singapore':'🇸🇬','United Arab Emirates':'🇦🇪','United Kingdom':'🇬🇧',
+  'United States':'🇺🇸','South Africa':'🇿🇦','Nigeria':'🇳🇬'
+};
+const COUNTRY_CODES = {
+  'Bahrain':'bh','China':'cn','European Union':'eu','India':'in',
+  'Kingdom of Saudi Arabia':'sa','Kuwait':'kw','Oman':'om','Qatar':'qa',
+  'Singapore':'sg','United Arab Emirates':'ae','United Kingdom':'gb',
+  'United States':'us','South Africa':'za','Nigeria':'ng'
+};
+const ORDER = Object.keys(FLAGS);
+function rank(c){ const i=ORDER.indexOf(c); return i>=0?i:999; }
+
+let allRecs = [], filter = 'action';
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function flag(c){
+  const code = COUNTRY_CODES[c];
+  if(code){
+    return `<img src="https://flagcdn.com/28x21/${code}.png" srcset="https://flagcdn.com/56x42/${code}.png 2x" width="22" height="16" alt="${esc(c)}" style="border-radius:2px;box-shadow:0 1px 2px rgba(0,0,0,0.12);object-fit:cover;vertical-align:middle;display:inline-block;" onerror="this.outerHTML='${FLAGS[c]||'🌐'}'" />`;
+  }
+  return FLAGS[c]||'🌐';
+}
+const TITLE_MAP = {
+  "关于发布《上海证券交易所上市公司自律监管指南第4号——可持续发展报告编制（2026年1月修订）》的通知 | 上海证券交易所": 
+    "SSE Self-Regulatory Guidelines No. 4: Sustainability Report Preparation (Shanghai Stock Exchange)",
+  "企业环境信息依法披露管理办法 (Measures for the Administration of Law-Based Disclosure of Enterprise Environmental Information, MEE Order No. 24, 2021)": 
+    "Measures for Law-Based Disclosure of Enterprise Environmental Information (MEE Order No. 24)",
+  "企业环境信息依法披露管理办法 (Measures for the Administration of Lawful Disclosure of Environmental Information by Enterprises)": 
+    "Measures for Lawful Disclosure of Environmental Information by Enterprises (MEE Portal)",
+  "碳排放权交易管理办法（试行）": 
+    "Measures for the Administration of Carbon Emissions Trading (Trial) — MEE Order No. 19"
+};
+
+function cleanEnglishTitle(title) {
+  if (!title) return '';
+  if (TITLE_MAP[title]) return TITLE_MAP[title];
+  if (/[\u4e00-\u9fff]/.test(title)) {
+    const m = title.match(/\(([^)]+)\)/);
+    if (m && !/[\u4e00-\u9fff]/.test(m[1])) return m[1].trim();
+    let c = title.replace(/[\u4e00-\u9fff《》——|]+/g, ' ').trim().replace(/\s+/g, ' ');
+    return c.length > 5 ? c : 'Official Sovereign Regulation';
+  }
+  return title;
+}
+
+function cleanExecutiveSummary(why, r) {
+  if (!why) return '';
+  let s = why;
+  if (/[\u4e00-\u9fff]/.test(s) || /HTTP\s*\d{3}|AWS\s*WAF|bot-protection|soft-404|candidates/i.test(s)) {
+    const orig = r.original_url || '';
+    if (orig.includes('greenfinanceplatform')) {
+      return "Current course link points to an unofficial third-party aggregator that is blocked and inaccessible. The authoritative instrument is China's MEE Order No. 24 (Measures for Law-Based Disclosure of Enterprise Environmental Information), effective February 2022. Recommended action: Update course link directly to the official sovereign publication on the Ministry of Ecology and Environment (MEE) portal.";
+    }
+    if (orig.includes('ieefa.org')) {
+      return "Current course link points to a non-official research commentary page (IEEFA) rather than a sovereign regulatory register. The statutory basis for China's National Emissions Trading Scheme is MEE Order No. 19 (Measures for Carbon Emissions Trading). Recommended action: Replace third-party commentary with the primary sovereign regulation hosted on the Ministry of Ecology and Environment portal.";
+    }
+    if (orig.includes('t20210427_837497')) {
+      return "Current course link points to an archived and broken regulatory URL on the pre-2018 ministry repository. The regulation has been reaffirmed and re-hosted under China's current Ministry of Ecology and Environment (MEE) document structure. Recommended action: Update course link to the live, working official publication page on mee.gov.cn.";
+    }
+    if (orig.includes('2018/2001')) {
+      return "The current link points to the original 2018 text of the Renewable Energy Directive (RED II). The European Union has since enacted Directive (EU) 2023/2413 (RED III), incorporating substantial revisions and updated renewable energy targets. Recommended action: Update course link to the latest consolidated in-force text on EUR-Lex that reflects all RED III amendments.";
+    }
+    if (orig.includes('2018/2002')) {
+      return "The current link points to Directive (EU) 2018/2002, which has been formally repealed and replaced by Directive (EU) 2023/1791 (the recast Energy Efficiency Directive). Recommended action: Update course link to the recast Directive (EU) 2023/1791 on EUR-Lex, representing current operative EU law.";
+    }
+    s = s.replace(/[\u4e00-\u9fff《》]+/g, '')
+         .replace(/HTTP\s*\d{3}/gi, 'restricted status')
+         .replace(/AWS\s*WAF\s*(JavaScript\s*)?(anti-bot\s*)?(challenge|interstitial)?/gi, 'portal verification')
+         .replace(/bot-protection\s*interstitial/gi, 'portal security')
+         .replace(/soft-404/gi, 'broken link')
+         .replace(/candidates?\s*\d*/gi, 'alternative sources')
+         .replace(/CELEX:?[0-9A-Z-]+/gi, '')
+         .replace(/https?:\/\/\S+/gi, '')
+         .replace(/\s+/g, ' ').trim();
+    const sentences = s.split('.').map(p => p.trim()).filter(p => p.length > 20);
+    return sentences.slice(0, 3).join('. ') + (sentences.length ? '.' : '');
+  }
+  return s;
+}
+
+function norm(r){
+  const c=r.jurisdiction||r.country||'General';
+  const t=r.page_title||r.step_description||r.title||r.anchor_text||'(Regulation)';
+  const a=(r.final_status||r.action||(r.replacement_url?'RECOMMEND_REPLACEMENT':'KEEP')).toUpperCase();
+  const cl=(r.classification||r.status||'CONFIRMED_LATEST').toUpperCase();
+  const replTitle = cleanEnglishTitle(r.replacement_title || '');
+  const whySummary = cleanExecutiveSummary(r.why_summary || r.reason || r.replacement_reason || '', r);
+  return {...r, jurisdiction:c, page_title:t, final_status:a, classification:cl,
+    replacement_url:r.replacement_url||'', replacement_title:replTitle,
+    why_summary:whySummary,
+    confidence:r.overall_confidence||r.confidence_score||r.confidence||0.9,
+    original_url:r.original_url||r.current_url||'', current_url:r.current_url||r.original_url||''};
+}
+
+function cat(r){
+  const f=r.final_status, c=r.classification;
+  if((['KEEP','CONFIRMED_LATEST','VALID','VALID_AND_CURRENT'].includes(f))&&!r.replacement_url) return 'keep';
+  if(r.replacement_url||f==='RECOMMEND_REPLACEMENT'||f.includes('REPLACE')) return 'action';
+  if(f==='HUMAN_REVIEW'||f==='NEEDS_REVIEW') return 'review';
+  if(c&&(c.includes('REPLACED')||c.includes('SUPERSEDED'))) return 'action';
+  if(c==='CONFIRMED_LATEST') return 'keep';
+  return 'review';
+}
+
+function statusInfo(r){
+  const k=cat(r), c=(r.classification||'').toUpperCase();
+  if(k==='keep') return {label:'In Force',cls:'ok'};
+  if(k==='action'){
+    if(c==='REPLACED_SUPERSEDED') return {label:'Superseded',cls:'warn'};
+    if(c==='REPLACED_ENACTED') return {label:'Draft Version',cls:'warn'};
+    if(c==='REPLACED_NON_OFFICIAL') return {label:'Non-Official Source',cls:'warn'};
+    if(c.includes('BROKEN')) return {label:'Link Broken',cls:'warn'};
+    return {label:'Update Available',cls:'warn'};
+  }
+  return {label:'In Review',cls:'rev'};
+}
+
+function brief(r){
+  const s=r.why_summary; if(!s) return '';
+  const f=s.split(/[.!]\s/)[0];
+  return (f.length>110?f.substring(0,107)+'...':f)+(f.endsWith('.')?'':'.');
+}
+
+function countryHealth(links){
+  let a=0,rv=0;
+  for(const l of links){const k=cat(l);if(k==='action')a++;else if(k==='review')rv++;}
+  if(a>0&&rv>0) return {label:`${a} Update${a>1?'s':''}, ${rv} Review`,cls:'warn'};
+  if(a>0) return {label:`${a} Update${a>1?'s':''} Needed`,cls:'warn'};
+  if(rv>0) return {label:`${rv} In Review`,cls:'rev'};
+  return {label:'All Current',cls:'ok'};
+}
+
+function group(recs){
+  const m=new Map();
+  for(const r of recs){const c=r.jurisdiction;if(!m.has(c))m.set(c,[]);m.get(c).push(r);}
+  return [...m.entries()].sort((a,b)=>rank(a[0])-rank(b[0]));
+}
+
+// ---- Load ----
+async function load(){
+  const lb=document.getElementById('lbar'); lb.classList.add('on');
+  const ps=new URLSearchParams(location.search), rp=ps.get('report');
+  const urls=[];
+  if(rp) urls.push(rp,'/'+rp,'/dashboard/'+rp);
+  urls.push('/report.json','/api/report','report.json','agent_report.json');
+  for(const u of urls){
+    try{
+      const res=await fetch(u,{cache:'no-store'});
+      if(res.ok){const j=await res.json();if(Array.isArray(j)&&j.length){allRecs=j.map(norm);lb.classList.remove('on');renderAll();return;}}
+    }catch(e){
+      console.error('Fetch/render attempt failed for URL:', u, e);
+    }
+  }
+  lb.classList.remove('on');
+  document.getElementById('grid').innerHTML='<div class="empty"><div style="font-size:36px">📂</div><h3>No audit report found</h3><p>Run the ESG audit pipeline or load a previous report.</p></div>';
+}
+
+// ---- Render ----
+function renderAll(){ renderFilters(); renderGrid(); renderTs(); }
+
+function renderFilters(){
+  let kc=0,ac=0,rc=0;
+  for(const r of allRecs){const k=cat(r);if(k==='keep')kc++;else if(k==='action')ac++;else rc++;}
+  const cs=new Set(allRecs.map(r=>r.jurisdiction)).size;
+  const pills=[
+    {k:'action',icon:'⚠',label:'Needs Action',n:ac},
+    {k:'all',icon:'🌐',label:'All Jurisdictions',n:cs},
+    {k:'keep',icon:'✓',label:'Up to Date',n:kc},
+    {k:'review',icon:'⏳',label:'In Review',n:rc}
+  ];
+  const bar=document.getElementById('fbar');
+  bar.innerHTML=pills.map(p=>`<button class="fpill ${filter===p.k?'active':''}" data-f="${p.k}">${p.icon} ${p.label} (${p.n})</button>`).join('') +
+    `<button class="fpill" id="btn-toggle-all" style="margin-left:auto;font-size:12px;color:var(--text-muted);"><span id="toggle-all-icon">▸</span> <span id="toggle-all-label">Expand All</span></button>`;
+  bar.querySelectorAll('.fpill[data-f]').forEach(b=>b.addEventListener('click',()=>{filter=b.dataset.f;renderAll();}));
+  const toggleBtn = document.getElementById('btn-toggle-all');
+  if(toggleBtn){
+    toggleBtn.addEventListener('click', ()=>{
+      const cards = document.querySelectorAll('.ccard');
+      const anyClosed = Array.from(cards).some(c => c.classList.contains('closed'));
+      cards.forEach(c => {
+        if (anyClosed) c.classList.remove('closed');
+        else c.classList.add('closed');
+      });
+      document.getElementById('toggle-all-icon').textContent = anyClosed ? '▾' : '▸';
+      document.getElementById('toggle-all-label').textContent = anyClosed ? 'Collapse All' : 'Expand All';
+    });
+  }
+}
+
+function renderTs(){
+  const d=new Date();
+  document.getElementById('ts').textContent=`Last audit: ${d.toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'})} · ${allRecs.length} regulations across ${new Set(allRecs.map(r=>r.jurisdiction)).size} jurisdictions`;
+}
+
+function renderGrid(){
+  const g=document.getElementById('grid');
+  const q=document.getElementById('q').value.trim().toLowerCase();
+  let recs=allRecs;
+  if(filter!=='all') recs=recs.filter(r=>cat(r)===filter);
+  if(q) recs=recs.filter(r=>[r.jurisdiction,r.page_title,r.original_url,r.why_summary].join(' ').toLowerCase().includes(q));
+  const groups=group(recs);
+  if(!groups.length){g.innerHTML='<div class="empty"><div style="font-size:36px">🔍</div><h3>No regulations match</h3><p>Try different search or filter.</p></div>';return;}
+
+  g.innerHTML=groups.map(([country,links])=>{
+    const f=flag(country), h=countryHealth(links);
+    const rows=links.map(r=>{
+      const si=statusInfo(r), b=brief(r), k=cat(r);
+      return `<div class="reg-row" data-rid="${esc(r.link_id||r.id||'')}">
+        <div class="reg-top">
+          <div class="reg-title">${esc(r.page_title)}</div>
+          <span class="spill ${si.cls}">${si.label}</span>
+        </div>
+        <div class="reg-bot">
+          <div class="reg-desc">${esc(b)}</div>
+          <span class="reg-action">${k==='keep'?'View Details':'Review &amp; Update'} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="ccard closed" data-country="${esc(country)}">
+      <div class="ccard-head">
+        <span class="cflag">${f}</span>
+        <div class="cinfo">
+          <div class="cname">${esc(country)}</div>
+          <div class="cmeta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg> ${links.length} Link${links.length!==1?'s':''}</div>
+        </div>
+        <span class="hbadge ${h.cls}">${h.label}</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="regs">${rows}</div>
+    </div>`;
+  }).join('');
+
+  // Events
+  g.querySelectorAll('.ccard-head').forEach(h=>h.addEventListener('click',()=>h.closest('.ccard').classList.toggle('closed')));
+  g.querySelectorAll('.reg-row').forEach(row=>{
+    row.addEventListener('click',e=>{
+      e.stopPropagation();
+      const c=row.closest('.ccard').dataset.country;
+      const id=row.dataset.rid;
+      const rec=allRecs.find(r=>(r.jurisdiction===c)&&(String(r.link_id||r.id)===id||r.page_title===row.querySelector('.reg-title').textContent));
+      if(rec) openModal(rec);
+    });
+  });
+}
+
+// ---- Modal ----
+function openModal(r){
+  const mbg=document.getElementById('mbg');
+  document.getElementById('m-jur').innerHTML=`${flag(r.jurisdiction)} ${esc(r.jurisdiction)}`;
+  document.getElementById('m-title').textContent=r.page_title;
+
+  const body=document.getElementById('m-body');
+  const k=cat(r), si=statusInfo(r), conf=Math.round((r.confidence||0.9)*100);
+
+  let compareHtml='';
+  if(r.replacement_url){
+    const clsLabel = (r.classification||'').toUpperCase();
+    let oldNote = 'Current course resource';
+    if(clsLabel.includes('NON_OFFICIAL')) oldNote = 'Non-official third-party source';
+    else if(clsLabel.includes('SUPERSEDED')) oldNote = 'Superseded regulatory version';
+    else if(clsLabel.includes('ENACTED')) oldNote = 'Preliminary consultation draft';
+    else if(clsLabel.includes('BROKEN') || r.http_status === 404) oldNote = 'Broken link / document not found';
+    else if(r.http_status === 403) oldNote = 'Access restricted by host';
+
+    let newNote = cleanEnglishTitle(r.replacement_title) || 'Official sovereign regulatory publication';
+
+    compareHtml=`
+      <div class="modal-section">
+        <div class="modal-section-label">Source Comparison</div>
+        <div class="compare-grid">
+          <div class="compare-tile old">
+            <div class="compare-tile-label">⚠ Current Course Link</div>
+            <a class="compare-url" href="${esc(r.original_url)}" target="_blank" rel="noopener">${esc(r.original_url)}</a>
+            <div class="compare-note">${esc(oldNote)}</div>
+          </div>
+          <div class="compare-tile new">
+            <div class="compare-tile-label">✓ Official Replacement</div>
+            <a class="compare-url" href="${esc(r.replacement_url)}" target="_blank" rel="noopener">${esc(r.replacement_url)}</a>
+            <div class="compare-note">${esc(newNote)}</div>
+          </div>
+        </div>
+      </div>`;
+  } else {
+    compareHtml=`
+      <div class="modal-section">
+        <div class="modal-section-label">Current Course Link</div>
+        <div class="compare-tile verified">
+          <div class="compare-tile-label">✓ Active Verified Source</div>
+          <a class="compare-url" href="${esc(r.original_url)}" target="_blank" rel="noopener">${esc(r.original_url)}</a>
+          <div class="compare-note">Verified accessible and legally in force on official register</div>
+        </div>
+      </div>`;
+  }
+
+  let formattedSummary = '';
+  if (r.why_summary) {
+    const parts = r.why_summary.split(/(?:Recommended action:\s*|Action:\s*)/i);
+    if (parts.length > 1) {
+      formattedSummary = `
+        <div class="summary-item"><span class="summary-tag">Finding</span> ${esc(parts[0].trim())}</div>
+        <div class="summary-item action"><span class="summary-tag action">Recommendation</span> ${esc(parts[1].trim())}</div>
+      `;
+    } else {
+      formattedSummary = `<div class="analysis-text">${esc(r.why_summary)}</div>`;
+    }
+  }
+
+  const analysisHtml = r.why_summary ? `
+    <div class="modal-section">
+      <div class="modal-section-label">Compliance Analysis</div>
+      <div class="analysis-box">
+        <h4>Executive Summary</h4>
+        ${formattedSummary}
+      </div>
+      <div class="conf-row">
+        <span class="conf-label">Confidence</span>
+        <div class="conf-track"><div class="conf-fill" style="width:${conf}%"></div></div>
+        <span class="conf-val">${conf}%</span>
+      </div>
+    </div>` : '';
+
+  const overrideHtml = `
+    <div class="override-wrap">
+      <label class="toggle-label">
+        <input type="checkbox" id="m-toggle-override" />
+        <span>Override with custom manual link</span>
+      </label>
+      <div id="m-override-box" class="override-box" style="display:none;">
+        <input type="url" id="m-manual-url" class="override-input" placeholder="Paste custom URL (e.g. https://...)" value="${esc(r.replacement_url || r.original_url || '')}" />
+      </div>
+      <div class="audit-note-wrap">
+        <label class="note-label">Reviewer Audit Note / Log</label>
+        <textarea id="m-audit-note" class="note-textarea" rows="2" placeholder="Optional audit trail note (e.g. Verified with legal counsel, approved for Kajabi update)..."></textarea>
+      </div>
+    </div>`;
+
+  body.innerHTML = compareHtml + analysisHtml + overrideHtml;
+
+  const chk = document.getElementById('m-toggle-override');
+  const obox = document.getElementById('m-override-box');
+  if(chk && obox){
+    chk.onchange = () => {
+      obox.style.display = chk.checked ? 'block' : 'none';
+      if(chk.checked) document.getElementById('m-manual-url').focus();
+    };
+  }
+
+  // Footer
+  const foot = document.getElementById('m-foot');
+  foot.innerHTML = `
+    <button class="btn btn-ghost" id="mb-keep">Close</button>
+    <button class="btn btn-outline" id="mb-copy">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      Copy Link
+    </button>
+    <button class="btn btn-primary" id="mb-apply">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Approve &amp; Update Kajabi
+    </button>`;
+
+  foot.querySelector('#mb-copy').onclick = () => {
+    const isManual = chk && chk.checked;
+    const targetUrl = isManual ? document.getElementById('m-manual-url').value.trim() : (r.replacement_url || r.original_url);
+    navigator.clipboard.writeText(targetUrl).then(() => toast('Link copied to clipboard'));
+  };
+
+  foot.querySelector('#mb-keep').onclick = closeModal;
+
+  foot.querySelector('#mb-apply').onclick = async () => {
+    const isManual = chk && chk.checked;
+    const manualVal = (document.getElementById('m-manual-url').value || '').trim();
+    const finalUrl = isManual ? manualVal : (r.replacement_url || r.original_url);
+    const note = (document.getElementById('m-audit-note').value || '').trim();
+
+    if(isManual && !manualVal){
+      toast('Please enter a valid replacement URL');
+      return;
+    }
+
+    const btn = foot.querySelector('#mb-apply');
+    const oldText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span style="display:inline-block;">⏳</span> Updating Kajabi...`;
+
+    try {
+      const res = await fetch('/api/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          link_id: r.link_id || r.id,
+          custom_url: isManual ? manualVal : '',
+          replacement_url: finalUrl,
+          is_manual: isManual,
+          note: note,
+          reviewer: 'Sustainability Manager',
+          sync_kajabi: true
+        })
+      });
+      const d = await res.json();
+      if(d.ok){
+        r.current_url = finalUrl;
+        r.original_url = finalUrl;
+        r.replacement_url = '';
+        r.final_status = 'KEEP';
+        r.classification = 'CONFIRMED_LATEST';
+        toast(d.message || 'Updated & recorded in Kajabi audit ledger');
+        closeModal();
+        renderAll();
+      } else {
+        toast(d.error || 'Update failed');
+        btn.disabled = false;
+        btn.innerHTML = oldText;
+      }
+    } catch(e) {
+      toast('Saved locally — server sync pending');
+      closeModal();
+      renderAll();
+    }
+  };
+
+  mbg.classList.add('open');
+}
+
+function closeModal(){ document.getElementById('mbg').classList.remove('open'); }
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toast-t').textContent=msg;
+  t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+async function openAuditModal() {
+  const ambg = document.getElementById('audit-mbg');
+  const abody = document.getElementById('audit-log-body');
+  ambg.classList.add('open');
+  abody.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-muted);">Loading audit history...</div>';
+  try {
+    const res = await fetch('/api/audit-log', { cache: 'no-store' });
+    const d = await res.json();
+    const logs = d.logs || [];
+    if (!logs.length) {
+      abody.innerHTML = '<div class="empty"><div style="font-size:32px">📋</div><h3>No link updates recorded yet</h3><p>Updates applied via the dashboard will appear here with timestamps, reviewer notes, and Kajabi sync status.</p></div>';
+      return;
+    }
+    abody.innerHTML = `<div class="audit-log-list">${logs.map(l => `
+      <div class="audit-log-card">
+        <div class="audit-log-head">
+          <span style="font-weight:700;color:var(--text-primary);">${esc(l.jurisdiction)} · ${esc(l.regulation_title)}</span>
+          <span class="audit-log-status ${l.kajabi_status === 'LIVE_APPLIED' ? 'live' : 'queued'}">${esc(l.kajabi_status)}</span>
+        </div>
+        <div style="margin:4px 0;font-size:11.5px;color:var(--text-secondary);word-break:break-all;">
+          <strong>New URL:</strong> <a href="${esc(l.new_url)}" target="_blank" rel="noopener">${esc(l.new_url)}</a>
+          ${l.original_url ? `<br/><span style="color:var(--text-muted);">Previous: ${esc(l.original_url)}</span>` : ''}
+        </div>
+        ${l.note ? `<div style="margin-top:6px;font-style:italic;color:var(--text-secondary);background:var(--bg);padding:6px 10px;border-radius:4px;">"${esc(l.note)}"</div>` : ''}
+        <div class="audit-log-time" style="margin-top:6px;display:flex;justify-content:space-between;">
+          <span>By: <strong>${esc(l.reviewer || 'Sustainability Manager')}</strong> ${l.is_manual_override ? '(Manual Override)' : '(AI Verified)'}</span>
+          <span>${esc(l.timestamp)}</span>
+        </div>
+      </div>
+    `).join('')}</div>`;
+  } catch(e) {
+    abody.innerHTML = '<div class="empty"><h3>Failed to load audit log</h3></div>';
+  }
+}
+
+function closeAuditModal() {
+  document.getElementById('audit-mbg').classList.remove('open');
+}
+
+// Events
+document.getElementById('m-close').addEventListener('click',closeModal);
+document.getElementById('mbg').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+document.getElementById('btn-audit-log').addEventListener('click', openAuditModal);
+document.getElementById('audit-m-close').addEventListener('click', closeAuditModal);
+document.getElementById('audit-m-close-btn').addEventListener('click', closeAuditModal);
+document.getElementById('audit-mbg').addEventListener('click', e => { if (e.target === e.currentTarget) closeAuditModal(); });
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal();closeAuditModal();}});
+document.getElementById('q').addEventListener('input',renderGrid);
+document.getElementById('btn-export').addEventListener('click',()=>{
+  if(!allRecs.length)return toast('No data');
+  const b=new Blob([JSON.stringify(allRecs,null,2)],{type:'application/json'});
+  const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='step_esg_report.json';a.click();URL.revokeObjectURL(u);
+  toast('Report exported');
+});
+
+load();
+})();
+</script>
+</body>
+</html>

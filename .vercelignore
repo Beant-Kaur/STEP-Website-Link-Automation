@@ -1,0 +1,14 @@
+# Security: Never upload credentials or session tokens to Vercel
+.env
+*.env.*
+kajabi_session/
+
+# Caches and local databases
+__pycache__/
+*.pyc
+*.db
+.pytest_cache/
+
+# Git
+.git/
+.gitignore

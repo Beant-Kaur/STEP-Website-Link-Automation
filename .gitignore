@@ -1,0 +1,23 @@
+# Environment and sensitive credentials
+.env
+*.env.local
+
+# Persistent browser sessions (contains Kajabi authentication tokens/cookies)
+kajabi_session/
+
+# Python bytecode and caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Local databases and logs
+*.db
+*.log
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+.vercel
