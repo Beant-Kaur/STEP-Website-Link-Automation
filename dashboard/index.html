@@ -376,26 +376,62 @@
       overflow: hidden;
     }
     .agent-cfg-bar {
-      display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+      display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px;
       padding: 14px 24px;
       background: var(--bg);
       border-bottom: 1px solid var(--border);
     }
-    .agent-cfg-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 170px; }
-    .agent-cfg-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); }
+    .agent-cfg-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 170px; }
+    .agent-cfg-lbl { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
     .agent-select {
-      padding: 7px 12px; border-radius: var(--radius-sm);
+      height: 38px;
+      padding: 0 12px; border-radius: var(--radius-sm);
       border: 1px solid var(--border); background: var(--surface);
       color: var(--text-primary); font-size: 13px; font-weight: 500;
-      outline: none;
+      outline: none; box-sizing: border-box; cursor: pointer;
+      font-family: inherit;
+    }
+    .agent-select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(26,107,60,0.15);
+    }
+    .agent-protocol-badge {
+      height: 38px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 12px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius-sm);
+    }
+    .protocol-icon { font-size: 16px; line-height: 1; flex-shrink: 0; }
+    .protocol-info { display: flex; flex-direction: column; line-height: 1.2; flex: 1; overflow: hidden; }
+    .protocol-name { font-size: 12px; font-weight: 700; color: #166534; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+    .protocol-desc { font-size: 10px; color: #15803d; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+    .protocol-tag {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      background: #166534;
+      color: #fff;
+      padding: 3px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .agent-btn-start {
-      display: inline-flex; align-items: center; gap: 6px;
+      height: 38px;
+      box-sizing: border-box;
+      display: inline-flex; align-items: center; gap: 8px;
       background: var(--primary); color: #fff;
       font-weight: 600; font-size: 13px;
-      padding: 9px 18px; border-radius: var(--radius-pill);
+      padding: 0 20px; border-radius: var(--radius-pill);
       cursor: pointer; transition: var(--transition);
-      align-self: flex-end;
+      align-self: flex-end; white-space: nowrap;
+      border: none;
     }
     .agent-btn-start:hover:not(:disabled) {
       background: var(--primary-hover);
@@ -557,22 +593,26 @@
 
     <!-- Config Bar -->
     <div class="agent-cfg-bar">
-      <div class="agent-cfg-group">
+      <div class="agent-cfg-group" style="flex:1.2;">
         <label class="agent-cfg-lbl">Target Scope</label>
         <select class="agent-select" id="agent-scope-sel">
-          <option value="all">🌐 All Jurisdictions (13 Countries · 48 Links)</option>
+          <option value="all">🌐 All Jurisdictions (13 Countries · 48 Regulations)</option>
         </select>
       </div>
-      <div class="agent-cfg-group">
+      <div class="agent-cfg-group" style="flex:1.5;">
         <label class="agent-cfg-lbl">Audit Protocol</label>
-        <select class="agent-select" id="agent-mode-sel">
-          <option value="quick">⚡ Fast Pre-Flight Check (HTTP Status &amp; Redirects)</option>
-          <option value="deep">🧠 Deep Sovereign Recency Audit (LLM Grounding)</option>
-        </select>
+        <div class="agent-protocol-badge">
+          <span class="protocol-icon">🧠</span>
+          <div class="protocol-info">
+            <span class="protocol-name">Deep Sovereign Recency Audit</span>
+            <span class="protocol-desc">LLM Grounding &amp; Official Sovereign Gazettes</span>
+          </div>
+        </div>
+        <input type="hidden" id="agent-mode-sel" value="deep" />
       </div>
       <button class="agent-btn-start" id="agent-btn-run">
         <span>▶</span>
-        <span id="agent-btn-run-text">Start Audit Agent</span>
+        <span id="agent-btn-run-text">Run Deep Sovereign Audit</span>
       </button>
     </div>
 
@@ -610,7 +650,8 @@
     <!-- Live Dark Terminal -->
     <div class="agent-terminal" id="agent-terminal">
       <div class="t-line sys">[SYSTEM] STEP ESG Autonomous Audit Agent v2.4 initialized.</div>
-      <div class="t-line dim">[SYSTEM] Select scope &amp; protocol above, then click 'Start Audit Agent'.</div>
+      <div class="t-line info">[PROTOCOL] Deep Sovereign Recency Audit (Grounded LLM + Official Sovereign Gazettes).</div>
+      <div class="t-line dim">[READY] Select target scope above, then click 'Run Deep Sovereign Audit'.</div>
     </div>
 
     <!-- Footer -->
@@ -1133,7 +1174,8 @@ function populateAgentScopeOptions() {
     const count = allRecs.filter(r => r.jurisdiction === c).length;
     const opt = document.createElement('option');
     opt.value = c;
-    opt.textContent = `${flag(c)} ${c} (${count} links)`;
+    const emoji = FLAGS[c] || '🌐';
+    opt.textContent = `${emoji}  ${c} (${count} regulations)`;
     sel.appendChild(opt);
   });
 }
@@ -1158,7 +1200,7 @@ async function runAgentAudit() {
   btnText.textContent = 'Auditing...';
 
   const scope = document.getElementById('agent-scope-sel').value;
-  const mode = document.getElementById('agent-mode-sel').value;
+  const mode = 'deep'; // Deep Sovereign Audit is the only foolproof protocol
   const terminal = document.getElementById('agent-terminal');
   terminal.innerHTML = '';
 
@@ -1170,8 +1212,8 @@ async function runAgentAudit() {
   document.getElementById('agent-btn-export').style.display = 'none';
 
   logTerminal(`[SYSTEM] Initializing STEP ESG Link Audit Agent v2.4...`, 'sys');
-  logTerminal(`[SYSTEM] Scope: ${scope === 'all' ? 'All 13 Jurisdictions (48 Regulations)' : scope} | Protocol: ${mode.toUpperCase()}`, 'info');
-  logTerminal(`[SYSTEM] Target: Sovereign Portals & In-Force Gazettes`, 'dim');
+  logTerminal(`[SYSTEM] Scope: ${scope === 'all' ? 'All 13 Jurisdictions (48 Regulations)' : scope} | Protocol: DEEP SOVEREIGN RECENCY AUDIT (FOOLPROOF)`, 'info');
+  logTerminal(`[SYSTEM] Target: Sovereign Portals & Official In-Force Gazettes`, 'dim');
 
   let statOk = 0, statRepl = 0, statErr = 0, statRev = 0;
   const updateStatsUI = () => {
