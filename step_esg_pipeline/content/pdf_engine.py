@@ -88,7 +88,7 @@ class PdfEngine:
         }
 
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "User-Agent": "STEP-ESG-Auditor/1.0 (compliance@step-monitoring.org; Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36)",
             "Accept": "application/pdf,application/xhtml+xml,text/html;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
         }
@@ -100,7 +100,7 @@ class PdfEngine:
             result["content_type"] = resp.headers.get("Content-Type", "").lower()
 
             if resp.status_code in (403, 202):
-                result["pdf_case"] = "CASE_F_ACCESS_DENIED"
+                result["pdf_case"] = "CASE_F_ACCESS_RESTRICTED"
                 return result
 
             if resp.status_code in (404, 410):

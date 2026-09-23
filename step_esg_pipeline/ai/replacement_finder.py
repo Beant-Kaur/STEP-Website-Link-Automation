@@ -149,6 +149,18 @@ CANONICAL_ESG_REPLACEMENTS = [
         "replacement_title": "Nigeria Updated NDC 2021",
         "replacement_reason": "Interim report superseded by the official updated NDC.",
     },
+    {
+        "pattern": r"CAMA-NOTE-BOOK|cac\.gov\.ng.*cama",
+        "replacement_url": "https://icrp.cac.gov.ng/cama",
+        "replacement_title": "Corporate Affairs Commission (CAC) CAMA 2020 Portal",
+        "replacement_reason": "Original CAC PDF endpoint protected by Cloudflare Managed Challenge; updated to official accessible Corporate Affairs Commission CAMA 2020 portal.",
+    },
+    {
+        "pattern": r"circular-nsbp\.pdf|cbn\.gov\.ng.*nsbp|cbn\.gov\.ng.*circular-nsbp",
+        "replacement_url": "https://www.cbn.gov.ng/documents/circulars.html",
+        "replacement_title": "Central Bank of Nigeria (CBN) Circulars (FPR/DIR/CIR/GEN/01/33 - NSBP)",
+        "replacement_reason": "Original legacy static PDF endpoint protected by Cloudflare anti-bot challenge; updated to official Central Bank of Nigeria Circulars portal publishing circular FPR/DIR/CIR/GEN/01/33.",
+    },
 ]
 
 
@@ -366,7 +378,7 @@ class ReplacementFinder:
                 result.evidence.append(f"Candidate Verification: {note}")
                 is_403_or_restricted = (
                     record.http_status in (403, 202) or
-                    record.technical_status in ("ACCESS_RESTRICTED", "ACCESS_DENIED") or
+                    record.technical_status in ("ACCESS_RESTRICTED", "ACCESS_DENIED", "BOT_PROTECTION") or
                     getattr(record, "access_status", "") in ("ACCESS_DENIED", "ACCESS_CHALLENGE", "CLOUDFLARE_CHALLENGE", "BOT_PROTECTION")
                 )
                 if is_403_or_restricted:

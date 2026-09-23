@@ -133,7 +133,7 @@
     "jurisdiction": "China",
     "topic": "",
     "step_section": "ESG Legislative Landscape",
-    "step_description": "Sustainability Report (Trial) Guidelines (SSE, SZSE & BSE, 2024)",
+    "step_description": "National Emissions Trading Scheme (2021)",
     "anchor_text": "Link",
     "section_heading": "China",
     "original_url": "https://english.sse.com.cn/news/newsrelease/c/c_20250905_10790690.shtml",
@@ -238,8 +238,8 @@
     "jurisdiction": "China",
     "topic": "",
     "step_section": "ESG Legislative Landscape",
-    "step_description": "Sustainability Report (Trial) Guidelines (SSE, SZSE & BSE, 2024)",
-    "anchor_text": "Sustainability Report (Trial) Guidelines (SSE, SZSE & BSE, 2024)",
+    "step_description": "National Emissions Trading Scheme (2021)",
+    "anchor_text": "National Emissions Trading Scheme (2021)",
     "section_heading": "China",
     "original_url": "https://www.sse.com.cn/disclosure/listedinfo/announcement/c/20240424_624053.html",
     "current_url": "https://www.sse.com.cn/disclosure/listedinfo/announcement/c/20240424_624053.html",
@@ -314,6 +314,10 @@
       {
         "stage": "ORIGINAL_URL",
         "url": "https://www.sse.com.cn/disclosure/listedinfo/announcement/c/20240424_624053.html"
+      },
+      {
+        "stage": "REDIRECTED_URL",
+        "url": "https://static.sse.com.cn/disclosure/listedinfo/announcement/c/20240424_624053.html"
       }
     ],
     "extracted_dates_detail": [],
@@ -345,7 +349,7 @@
     "jurisdiction": "China",
     "topic": "",
     "step_section": "ESG Legislative Landscape",
-    "step_description": "MEE Measures on Environmental Information Disclosure by Listed Companies (2021)",
+    "step_description": "National Emissions Trading Scheme (2021)",
     "anchor_text": "Link",
     "section_heading": "China",
     "original_url": "https://www.greenfinanceplatform.org/policies-and-regulations/chinas-administrative-measures-legal-disclosure-enterprise-environmental",
@@ -452,8 +456,8 @@
     "jurisdiction": "China",
     "topic": "",
     "step_section": "ESG Legislative Landscape",
-    "step_description": "MEE Measures on Environmental Information Disclosure by Listed Companies (2021)",
-    "anchor_text": "MEE Measures on Environmental Information Disclosure by Listed Companies (2021)",
+    "step_description": "National Emissions Trading Scheme (2021)",
+    "anchor_text": "National Emissions Trading Scheme (2021)",
     "section_heading": "China",
     "original_url": "http://www.mee.gov.cn/gkml/hbb/bwj/202104/t20210427_837497.html",
     "current_url": "http://www.mee.gov.cn/gkml/hbb/bwj/202104/t20210427_837497.html",
@@ -489,9 +493,9 @@
     "content_accuracy_score": 0,
     "freshness_score": 40,
     "issue_description": "",
-    "replacement_required": true,
-    "replacement_url": "https://www.mee.gov.cn/xxgk2018/xxgk/xxgk02/202112/t20211221_964720.html",
-    "replacement_title": "Decree No. 24 of the Ministry of Ecology and Environment (China)",
+    "replacement_required": false,
+    "replacement_url": "",
+    "replacement_title": "",
     "replacement_authority": "",
     "replacement_comparability": "",
     "replacement_confidence": 0.9,
@@ -506,7 +510,7 @@
     "final_confidence": 0.95,
     "confidence_score": 0.95,
     "confidence_reason": "",
-    "reason": "Updated outdated or non-official links to the official MEE Decree 24.",
+    "reason": "",
     "evidence": [
       "Extracted from section 'ESG Legislative Landscape', Country 'China' (Exact match with target jurisdiction: 'China')",
       "Redirect detected (healthy_redirect) to: https://www.mee.gov.cn/404/index.shtml (Redirect chain length: 2)",
@@ -632,31 +636,17 @@
     "human_review_required": false,
     "checked_at": "2026-09-22T10:18:26.010567+00:00",
     "content_hash": "",
-    "pdf_url": "https://www.mee.gov.cn/ywgz/ydqhbh/wsqtkz/202509/W020250927515319387445.pdf",
+    "pdf_url": "",
     "candidate_pdf_url": "",
-    "pdf_validation_status": "VALID_PDF",
-    "pdf_magic_signature_verified": true,
+    "pdf_validation_status": "",
+    "pdf_magic_signature_verified": false,
     "discovered_trail": [
       {
         "stage": "ORIGINAL_URL",
         "url": "https://ieefa.org/resources/chinas-emissions-trading-system-ets-reforms-track-needs-robust-enforcement#:~:text=Evolving%20from%20pilot%20programs%20across,20%25%20of%20total%20global%20emissions."
-      },
-      {
-        "stage": "DISCOVERED_PDF_VIA_BROWSER",
-        "url": "https://www.mee.gov.cn/ywgz/ydqhbh/wsqtkz/202509/W020250927515319387445.pdf"
       }
     ],
-    "extracted_dates_detail": [
-      {
-        "original_date": "September 2025",
-        "normalized_date": "2025-09",
-        "context": "DOCUMENT_DATE",
-        "location": "body",
-        "source_url": "https://ieefa.org/resources/chinas-emissions-trading-system-ets-reforms-track-needs-robust-enforcement",
-        "confidence": 0.63,
-        "is_ambiguous": false
-      }
-    ],
+    "extracted_dates_detail": [],
     "document_references": [],
     "version_chain": [],
     "official_search_performed": false,

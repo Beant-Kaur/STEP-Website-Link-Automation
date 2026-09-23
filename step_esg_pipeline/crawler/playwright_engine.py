@@ -4,6 +4,7 @@ import time
 from typing import Optional, List, Dict, Any, Tuple
 from urllib.parse import urljoin, urlparse, unquote
 
+from content.html_parser import TECHNICAL_TITLE_PATTERNS
 from crawler.url_normalizer import UrlNormalizer
 
 logger = logging.getLogger("playwright_engine")
@@ -24,9 +25,10 @@ class PlaywrightEngine:
     - 403 / anti-bot challenge bypass attempt with real browser context.
     """
 
-    def __init__(self, headless: bool = True, timeout: int = 25000):
+    def __init__(self, headless: bool = True, timeout: int = 25000, user_data_dir: Optional[str] = None):
         self.headless = headless
         self.timeout = timeout
+        self.user_data_dir = user_data_dir or os.path.join(os.path.dirname(os.path.dirname(__file__)), ".pw_session_profile")
         self._playwright = None
         self._browser = None
         self._browser_type = "chrome"
@@ -175,51 +177,99 @@ class PlaywrightEngine:
             page.wait_for_timeout(1500)
 
             # Check if page is facing AWS WAF, Cloudflare, or JS challenge
-            page_content_pre = (page.content() or "").lower()
+            page_content_pre = ""
+            try:
+                page_content_pre = (page.content() or "").lower()
+            except Exception:
+                page_content_pre = ""
+
             is_bot_challenge = (
-                result["http_status"] == 202
+                result["http_status"] in (202, 403)
                 or "awswaf" in page_content_pre
                 or "challenge.js" in page_content_pre
                 or page.query_selector("#challenge-container") is not None
                 or "cf-chl-" in page_content_pre
+                or "just a moment" in (page.title() or "").lower()
             )
             if is_bot_challenge:
                 # Wait up to 15 seconds for token acquisition and page reload
                 for _ in range(15):
                     page.wait_for_timeout(1000)
-                    cur_title = page.title() or ""
-                    cur_body = page.inner_text("body") if page.query_selector("body") else ""
-                    if len(cur_body) > 300 and not page.query_selector("#challenge-container"):
-                        result["http_status"] = 200
-                        result["is_challenge_resolved"] = True
-                        result["final_url"] = page.url
-                        break
+                    try:
+                        cur_title = page.title() or ""
+                        cur_body = page.inner_text("body") if page.query_selector("body") else ""
+                        is_tech_title = any(re.search(pat, cur_title, re.I) for pat in TECHNICAL_TITLE_PATTERNS)
+                        if len(cur_body) > 300 and not page.query_selector("#challenge-container") and not is_tech_title:
+                            result["http_status"] = 200
+                            result["is_challenge_resolved"] = True
+                            result["final_url"] = page.url
+                            break
+                    except Exception:
+                        continue
+
+            # Check if this is a direct PDF URL or PDF extension loaded in browser
+            is_pdf_endpoint = (
+                (response and "application/pdf" in (response.headers.get("content-type", "").lower()))
+                or url.lower().endswith(".pdf")
+                or "/download" in url.lower()
+                or "chrome-extension://" in (page.url or "")
+            )
+            if is_pdf_endpoint and (response is None or response.status == 200):
+                result["http_status"] = 200
+                result["is_access_denied"] = False
+                result["is_challenge_resolved"] = True
+                if url not in result["discovered_pdf_urls"]:
+                    result["discovered_pdf_urls"].append(url)
 
             # Check for cookie/disclaimer popups and dismiss them
             self._dismiss_modals(page)
 
             # Check if page is access denied / challenge
-            body_text = page.inner_text("body") if page.query_selector("body") else ""
-            title = page.title() or ""
+            body_text = ""
+            try:
+                body_text = page.inner_text("body") if page.query_selector("body") else ""
+            except Exception:
+                body_text = ""
+            title = ""
+            try:
+                title = page.title() or ""
+            except Exception:
+                title = ""
             result["title"] = title
             result["text"] = body_text[:6000]
 
             low_text = body_text.lower()
-            if any(x in low_text for x in ("access denied", "403 forbidden", "cf-chl-", "verify you are human", "checking your browser")):
+            low_title = title.lower()
+            if is_bot_challenge and not result.get("is_challenge_resolved"):
                 result["is_access_denied"] = True
-                if "cf-chl-" in low_text or "verify you are human" in low_text or "checking your browser" in low_text:
+                result["is_challenge_page"] = True
+                result["is_turnstile_interactive"] = True
+            elif any(x in low_text or x in low_title for x in ("access denied", "403 forbidden", "cf-chl-", "verify you are human", "checking your browser", "just a moment")):
+                result["is_access_denied"] = True
+                if any(x in low_text or x in low_title for x in ("cf-chl-", "verify you are human", "checking your browser", "just a moment")):
                     result["is_challenge_page"] = True
+                    result["is_turnstile_interactive"] = True
             elif len(body_text) > 300:
+                result["is_access_denied"] = False
+                result["is_challenge_page"] = False
+            elif is_pdf_endpoint and result["http_status"] == 200:
                 result["is_access_denied"] = False
                 result["is_challenge_page"] = False
 
             # Scroll down to trigger lazy loading
             for _ in range(max_scrolls):
-                page.evaluate("window.scrollBy(0, 600)")
-                page.wait_for_timeout(400)
+                try:
+                    page.evaluate("window.scrollBy(0, 600)")
+                    page.wait_for_timeout(400)
+                except Exception:
+                    pass
 
-            # Inspect HTML
-            html = page.content()
+            # Inspect HTML safely
+            html = ""
+            try:
+                html = page.content()
+            except Exception:
+                html = ""
             result["html"] = html
 
             # 1. Detect PDF Viewers
@@ -361,77 +411,55 @@ class PlaywrightEngine:
         links = []
         seen = set()
 
-        # 1. <a> tags
+        # Fast in-browser DOM extraction via single page.evaluate call
         try:
-            a_elements = page.query_selector_all("a[href]")
-            for a in a_elements:
-                try:
-                    href = a.get_attribute("href") or ""
-                    if not href or href.startswith(("javascript:", "mailto:", "tel:", "#")):
-                        continue
-                    full_url = urljoin(base_url, href)
-                    norm_url = UrlNormalizer.normalize(full_url)
-                    if norm_url in seen:
-                        continue
-                    seen.add(norm_url)
-
-                    text = (a.inner_text() or "").strip()
-                    title = a.get_attribute("title") or ""
-                    aria = a.get_attribute("aria-label") or ""
-                    combined_label = f"{text} {title} {aria}".strip()
-
-                    links.append({
-                        "tag": "a",
-                        "url": full_url,
-                        "normalized_url": norm_url,
-                        "text": text,
-                        "label": combined_label,
-                        "is_pdf_hint": self._is_pdf_candidate(full_url, combined_label, "a"),
-                    })
-                except Exception:
+            raw_items = page.evaluate("""() => {
+                const results = [];
+                const links = document.querySelectorAll('a[href]');
+                for (let i = 0; i < links.length && i < 300; i++) {
+                    const a = links[i];
+                    const href = a.getAttribute('href') || '';
+                    if (!href || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('#')) continue;
+                    results.push({
+                        tag: 'a',
+                        href: href,
+                        text: (a.innerText || a.textContent || '').trim(),
+                        title: a.getAttribute('title') || '',
+                        aria: a.getAttribute('aria-label') || ''
+                    });
+                }
+                const btns = document.querySelectorAll("button, .btn, [role='button'], input[type='button']");
+                for (let i = 0; i < btns.length && i < 50; i++) {
+                    const btn = btns[i];
+                    results.push({
+                        tag: 'button',
+                        href: btn.getAttribute('data-url') || btn.getAttribute('data-href') || btn.getAttribute('data-file') || '',
+                        text: (btn.innerText || btn.textContent || '').trim(),
+                        title: btn.getAttribute('title') || '',
+                        aria: btn.getAttribute('aria-label') || ''
+                    });
+                }
+                return results;
+            }""")
+            for item in raw_items:
+                href = item.get("href", "")
+                if not href:
                     continue
-        except Exception:
-            pass
-
-        # 2. Buttons with data-url, onclick, or download wording
-        try:
-            btn_elements = page.query_selector_all("button, .btn, [role='button'], input[type='button']")
-            for btn in btn_elements:
-                try:
-                    btn_text = (btn.inner_text() or "").strip()
-                    data_url = (
-                        btn.get_attribute("data-url")
-                        or btn.get_attribute("data-href")
-                        or btn.get_attribute("data-file")
-                        or btn.get_attribute("data-link")
-                        or ""
-                    )
-                    onclick = btn.get_attribute("onclick") or ""
-                    target_url = ""
-
-                    if data_url:
-                        target_url = urljoin(base_url, data_url)
-                    elif onclick:
-                        match = re.search(r"(?:location\.href|open|navigate)\s*=\s*['\"]([^'\"]+)['\"]", onclick, re.I)
-                        if not match:
-                            match = re.search(r"window\.open\(['\"]([^'\"]+)['\"]", onclick, re.I)
-                        if match:
-                            target_url = urljoin(base_url, match.group(1))
-
-                    if target_url:
-                        norm = UrlNormalizer.normalize(target_url)
-                        if norm not in seen:
-                            seen.add(norm)
-                            links.append({
-                                "tag": "button",
-                                "url": target_url,
-                                "normalized_url": norm,
-                                "text": btn_text,
-                                "label": btn_text,
-                                "is_pdf_hint": self._is_pdf_candidate(target_url, btn_text, "button"),
-                            })
-                except Exception:
+                full_url = urljoin(base_url, href)
+                norm_url = UrlNormalizer.normalize(full_url)
+                if norm_url in seen:
                     continue
+                seen.add(norm_url)
+                text = item.get("text", "")
+                combined_label = f"{text} {item.get('title', '')} {item.get('aria', '')}".strip()
+                links.append({
+                    "tag": item.get("tag", "a"),
+                    "url": full_url,
+                    "normalized_url": norm_url,
+                    "text": text,
+                    "label": combined_label,
+                    "is_pdf_hint": self._is_pdf_candidate(full_url, combined_label, item.get("tag", "a")),
+                })
         except Exception:
             pass
 

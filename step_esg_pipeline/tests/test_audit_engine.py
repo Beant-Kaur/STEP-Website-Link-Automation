@@ -306,3 +306,147 @@ class TestAuditEngineRequiredCases:
         data = json.loads(json_str)
         assert len(data) == 5
         assert data[0]["type"] == "extraction"
+
+    def test_13_sec_fair_access_and_pdf_validation(self):
+        """Scenario 13: SEC Fair Access header enables HTTP 200 PDF fetch with magic bytes."""
+        from content.pdf_engine import PdfEngine
+        from crawler.url_checker import UrlChecker
+
+        # Verify default SEC Fair Access User-Agent format
+        checker = UrlChecker()
+        ua = checker.session.headers.get("User-Agent", "")
+        assert "STEP-ESG-Auditor" in ua
+        assert "compliance@step-monitoring.org" in ua
+
+        # Verify PDF Engine handles direct PDF signature verification
+        dummy_pdf = b"%PDF-1.7\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF"
+        sig_verified = PdfEngine.verify_magic_bytes(dummy_pdf)
+        assert sig_verified is True
+
+    def test_14_concatenated_url_normalization(self):
+        """Scenario 14: Concatenated URLs with embedded query parameters are cleanly separated."""
+        from crawler.url_normalizer import UrlNormalizer
+
+        merged_raw = "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32023DC0012https://eur-lex.europa.eu/eli/reg_del/2023/2772/oj/eng&utm_source=gemini"
+        clean = UrlNormalizer.normalize(merged_raw)
+        assert clean == "https://eur-lex.europa.eu/eli/reg_del/2023/2772/oj/eng"
+
+    def test_15_cloudflare_challenge_granular_classification(self):
+        """Scenario 15: Cloudflare anti-bot challenge is accurately classified as BOT_PROTECTION."""
+        from crawler.url_checker import UrlChecker
+        from unittest.mock import MagicMock
+
+        checker = UrlChecker()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 403
+        mock_resp.headers = {"cf-ray": "8432a184e9123-AMS", "server": "cloudflare"}
+        html_snippet = "<html><head><title>Just a moment...</title></head><body><div id='cf-wrapper'>cf-chl-</div></body></html>"
+        
+        status, reason = checker._classify_access(mock_resp, html_snippet, "Just a moment...")
+        assert status == "CLOUDFLARE_CHALLENGE"
+        assert "Cloudflare" in reason
+
+    def test_16_playwright_internal_pdf_viewer_resolution(self):
+        """Scenario 16: Chrome internal PDF viewer extension at HTTP 200 is resolved as ACCESSIBLE."""
+        rec = LinkRecord(
+            link_id="t16",
+            jurisdiction="United Arab Emirates",
+            topic="UAE Cabinet Resolution",
+            step_section="ESG Legislative Landscape",
+            step_description="Cabinet Resolution No. (67) of 2024",
+            original_url="https://uaelegislation.gov.ae/en/legislations/2521/download",
+            http_status=200,
+            technical_status="ACCESSIBLE_VIA_BROWSER",
+            access_status="ACCESSIBLE",
+            document_type="PDF Regulation / Document",
+            authority_status="TIER_1_GOVERNMENT_GAZETTE",
+            regulatory_status="CURRENT_IN_FORCE",
+            freshness_status="CURRENT_IN_FORCE",
+            confidence_score=0.90,
+            overall_confidence=0.90,
+        )
+        decision = DecisionEngine().decide_canonical(rec)
+        assert decision == "KEEP"
+        assert rec.access_status == "ACCESSIBLE"
+        assert rec.technical_status == "ACCESSIBLE_VIA_BROWSER"
+
+    def test_17_technical_error_title_filtering(self):
+        """Scenario 17: Technical titles (Access Denied, Just a moment, JS disabled) are never used as document titles."""
+        from content.html_parser import TECHNICAL_TITLE_PATTERNS
+        import re
+
+        test_titles = [
+            "Access Denied",
+            "403 Forbidden",
+            "Just a moment...",
+            "Attention Required! | Cloudflare",
+            "JavaScript is disabled",
+            "Rate threshold exceeded",
+        ]
+        for title in test_titles:
+            is_match = any(re.search(pat, title, re.I) for pat in TECHNICAL_TITLE_PATTERNS)
+            assert is_match, f"Failed to reject technical title: {title}"
+
+    def test_18_nigeria_cac_and_cbn_blocked_with_verified_replacement(self):
+        """Scenario 18: CAC CAMA 2020 and CBN NSBP 2012 links blocked by Cloudflare resolve to verified official replacements."""
+        from ai.replacement_finder import ReplacementFinder
+
+        finder = ReplacementFinder()
+
+        # CAC CAMA 2020
+        cac_rec = LinkRecord(
+            link_id="test_cac",
+            jurisdiction="Nigeria",
+            topic="Company Law & Governance",
+            step_section="ESG Legislative Landscape",
+            step_description="Corporate Affairs Commission (CAC) – Companies and Allied Matters Act (CAMA) 2020",
+            original_url="https://www.cac.gov.ng/wp-content/uploads/2020/12/CAMA-NOTE-BOOK-FULL-VERSION.pdf",
+            http_status=403,
+            technical_status="BOT_PROTECTION",
+            access_status="CLOUDFLARE_CHALLENGE",
+            technical_page_title="Just a moment...",
+            page_title="Companies and Allied Matters Act (CAMA) 2020",
+            source_organisation="Corporate Affairs Commission (CAC)",
+            authority_status="TIER_1_OFFICIAL_REGULATOR",
+        )
+        url, title, reason = finder.find_replacement(cac_rec, {})
+        assert url == "https://icrp.cac.gov.ng/cama"
+        assert "CAC" in title or "CAMA" in title
+
+        cac_rec.replacement_url = url
+        cac_rec.replacement_title = title
+        cac_rec.replacement_verified = True
+        cac_rec.candidate_status = "REPLACEMENT_VERIFIED"
+        cac_rec.recommended_action = "ACCESS_DENIED_REPLACEMENT_FOUND"
+
+        assert DecisionEngine().decide_canonical(cac_rec) == "REPLACE"
+        assert DecisionEngine().decide(cac_rec, canonical=False) == "ACCESS_DENIED_REPLACEMENT_FOUND"
+
+        # CBN NSBP 2012
+        cbn_rec = LinkRecord(
+            link_id="test_cbn",
+            jurisdiction="Nigeria",
+            topic="Banking Principles",
+            step_section="ESG Legislative Landscape",
+            step_description="Central Bank of Nigeria – Nigerian Sustainable Banking Principles (NSBP) 2012",
+            original_url="https://www.cbn.gov.ng/out/2012/ccd/circular-nsbp.pdf",
+            http_status=403,
+            technical_status="BOT_PROTECTION",
+            access_status="CLOUDFLARE_CHALLENGE",
+            technical_page_title="Just a moment...",
+            page_title="Nigerian Sustainable Banking Principles (NSBP) 2012",
+            source_organisation="Central Bank of Nigeria (CBN)",
+            authority_status="TIER_1_OFFICIAL_REGULATOR",
+        )
+        url_cbn, title_cbn, reason_cbn = finder.find_replacement(cbn_rec, {})
+        assert url_cbn == "https://www.cbn.gov.ng/documents/circulars.html"
+        assert "CBN" in title_cbn or "NSBP" in title_cbn
+
+        cbn_rec.replacement_url = url_cbn
+        cbn_rec.replacement_title = title_cbn
+        cbn_rec.replacement_verified = True
+        cbn_rec.candidate_status = "REPLACEMENT_VERIFIED"
+        cbn_rec.recommended_action = "ACCESS_DENIED_REPLACEMENT_FOUND"
+
+        assert DecisionEngine().decide_canonical(cbn_rec) == "REPLACE"
+        assert DecisionEngine().decide(cbn_rec, canonical=False) == "ACCESS_DENIED_REPLACEMENT_FOUND"

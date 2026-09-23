@@ -62,8 +62,8 @@ class DecisionEngine:
         )
         is_blocked = (
             http_status in (403, 202)
-            or tech_status in ("ACCESS_BLOCKED", "HTTP_403", "WAF_CHALLENGE")
-            or access_status in ("ACCESS_DENIED", "ACCESS_CHALLENGE", "CLOUDFLARE_CHALLENGE", "BOT_PROTECTION")
+            or tech_status in ("ACCESS_BLOCKED", "HTTP_403", "WAF_CHALLENGE", "BOT_PROTECTION", "ACCESS_RESTRICTED", "CONNECTION_ERROR")
+            or access_status in ("ACCESS_DENIED", "ACCESS_CHALLENGE", "CLOUDFLARE_CHALLENGE", "BOT_PROTECTION", "RATE_LIMITED", "CONNECTION_ERROR")
             or classification in ("ACCESS_RESTRICTED", "ACCESS_DENIED")
         )
         is_outdated = (
@@ -78,7 +78,7 @@ class DecisionEngine:
 
         # Gate 1: Check if original document has technical title error (Access Denied, etc.)
         tech_title = (record.technical_page_title or "").lower()
-        if any(err in tech_title for err in ["access denied", "403 forbidden", "cloudflare", "waf", "security check"]):
+        if any(err in tech_title for err in ["access denied", "403 forbidden", "cloudflare", "waf", "security check", "just a moment"]):
             if not has_verified_rep:
                 return "MANUAL_REVIEW"
 

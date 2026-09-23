@@ -270,21 +270,29 @@ class PipelineOrchestrator:
         record.source_domain = urlparse(final_url).netloc.lower()
 
         # Map initial technical status
+        url_check_access = check.get("access_status", "")
         if record.http_status == 200:
             record.technical_status = "LIVE"
             record.access_status = "ACCESSIBLE"
+        elif check.get("is_soft_404") or url_check_access == "BROKEN_SOFT_404":
+            record.technical_status = "SOFT_404"
+            record.access_status = "BROKEN_SOFT_404"
         elif record.http_status in (403, 202):
-            record.technical_status = "ACCESS_BLOCKED"
-            record.access_status = "ACCESS_DENIED"
+            if url_check_access in ("CLOUDFLARE_CHALLENGE", "AWS_WAF_CHALLENGE", "BOT_PROTECTION", "JS_CHALLENGE"):
+                record.technical_status = "BOT_PROTECTION"
+                record.access_status = url_check_access
+            elif url_check_access == "RATE_LIMITED":
+                record.technical_status = "RATE_LIMITED"
+                record.access_status = "RATE_LIMITED"
+            else:
+                record.technical_status = "ACCESS_RESTRICTED"
+                record.access_status = "ACCESS_DENIED"
         elif record.http_status in (404, 410):
             record.technical_status = "HTTP_404"
             record.access_status = "BROKEN"
-        elif check.get("is_soft_404"):
-            record.technical_status = "SOFT_404"
-            record.access_status = "BROKEN_SOFT_404"
         else:
-            record.technical_status = raw_tech
-            record.access_status = "ACCESSIBLE" if (record.http_status and record.http_status < 400) else "BROKEN"
+            record.technical_status = str(raw_tech)
+            record.access_status = url_check_access or ("ACCESSIBLE" if (record.http_status and record.http_status < 400) else "BROKEN")
 
         evidence_trail.add(
             category="technical",
@@ -337,6 +345,8 @@ class PipelineOrchestrator:
                 record.pdf_magic_signature_verified = pdf_res.get("magic_signature_verified", False)
                 record.pdf_validation_status = "VALID_PDF"
                 record.technical_status = "PDF_VALID"
+                record.access_status = "ACCESSIBLE"
+                record.http_status = 200
                 record.document_type = "PDF Regulation / Document"
                 discovered_trail.append({"stage": "VERIFIED_PDF", "url": final_url})
                 evidence_trail.add(
@@ -361,12 +371,17 @@ class PipelineOrchestrator:
                 )
 
         # 5. Playwright Browser Validation (for WAF / Challenges / JavaScript Viewers)
+        raw_html = check.get("html", "")
         needs_browser = (
-            record.http_status in (403, 202)
-            or record.technical_status in ("ACCESS_BLOCKED", "SOFT_404")
-            or record.access_status in ("ACCESS_DENIED", "ACCESS_CHALLENGE", "CLOUDFLARE_CHALLENGE", "BOT_PROTECTION", "BROKEN_SOFT_404")
-            or not record.pdf_url
-            or "viewer" in final_url.lower()
+            record.technical_status != "PDF_VALID"
+            and (
+                record.http_status in (403, 202)
+                or record.technical_status in ("ACCESS_BLOCKED", "SOFT_404", "ACCESS_DENIED", "BOT_PROTECTION", "ACCESS_RESTRICTED")
+                or record.access_status in ("ACCESS_DENIED", "ACCESS_CHALLENGE", "CLOUDFLARE_CHALLENGE", "AWS_WAF_CHALLENGE", "BOT_PROTECTION", "BROKEN_SOFT_404")
+                or "viewer" in final_url.lower()
+                or "pdf.js" in final_url.lower()
+                or (record.http_status == 200 and not record.pdf_url and len(raw_html.strip()) < 300)
+            )
         )
 
         pw_info: Optional[Dict[str, Any]] = None
@@ -460,6 +475,11 @@ class PipelineOrchestrator:
                             and len(pw_info.get("text", "")) > 300
                             and not pw_info.get("is_access_denied")
                         )
+                        or (
+                            pw_info.get("http_status") == 200
+                            and not pw_info.get("is_access_denied")
+                            and not pw_info.get("is_challenge_page")
+                        )
                     )
                     if is_challenge_bypassed:
                         record.http_status = 200
@@ -467,22 +487,52 @@ class PipelineOrchestrator:
                         record.technical_status = "ACCESSIBLE_VIA_BROWSER"
                         evidence_trail.add(
                             category="browser",
-                            claim=f"Browser bypassed bot challenge (HTTP {record.http_status} -> 200)",
+                            claim=f"Browser accessed successfully (HTTP {record.http_status} -> 200)",
                             status="ACCESSIBLE_VIA_BROWSER",
                             confidence=0.90,
                             source="PlaywrightEngine",
-                            detail=f"Resolved page title: '{record.page_title}'",
+                            detail=f"Resolved page title: '{record.page_title or raw_pw_title}'",
+                        )
+                    elif pw_info.get("is_challenge_page") or pw_info.get("is_access_denied"):
+                        # Granular detection: Cloudflare / Bot challenge vs Server Access Denied
+                        if "cf-chl-" in (pw_info.get("text", "") or "").lower() or "just a moment" in (raw_pw_title or "").lower():
+                            record.access_status = "CLOUDFLARE_CHALLENGE"
+                            record.technical_status = "BOT_PROTECTION"
+                        elif pw_info.get("is_challenge_page"):
+                            record.access_status = "BOT_PROTECTION"
+                            record.technical_status = "BOT_PROTECTION"
+                        else:
+                            record.access_status = "ACCESS_DENIED"
+                            record.technical_status = "ACCESS_RESTRICTED"
+
+                        evidence_trail.add(
+                            category="browser",
+                            claim=f"Browser encountered access barrier: {record.access_status} ({record.technical_status})",
+                            status=record.technical_status,
+                            confidence=0.90,
+                            source="PlaywrightEngine",
+                            detail=f"Page title: '{raw_pw_title}'",
                         )
 
                 # Check if underlying PDF was discovered via viewer or DOM links
                 all_discovered_pdfs = pw_info.get("discovered_pdf_urls", [])
                 for pdf_cand in all_discovered_pdfs:
+                    if "chrome-extension://" in pdf_cand:
+                        record.document_type = "PDF Regulation / Document"
+                        record.technical_status = "ACCESSIBLE_VIA_BROWSER"
+                        record.access_status = "ACCESSIBLE"
+                        record.http_status = 200
+                        if not record.pdf_url and is_pdf_target:
+                            record.pdf_url = final_url
+                        continue
                     cand_val = PdfEngine.fetch_and_validate(pdf_cand, timeout=20)
                     if cand_val.get("is_valid_pdf"):
                         record.pdf_url = pdf_cand
                         record.pdf_magic_signature_verified = cand_val.get("magic_signature_verified", False)
                         record.pdf_validation_status = "VALID_PDF"
                         record.technical_status = "PDF_VALID"
+                        record.access_status = "ACCESSIBLE"
+                        record.http_status = 200
                         record.document_type = "PDF Regulation / Document"
                         discovered_trail.append({"stage": "DISCOVERED_PDF_VIA_BROWSER", "url": pdf_cand})
                         evidence_trail.add(
@@ -511,12 +561,18 @@ class PipelineOrchestrator:
             doc_refs = VersionChainEngine.extract_references(text_sample)
             extracted_dates_detail = UniversalDateEngine.extract_dates(text_sample, url=final_url, jurisdiction=record.jurisdiction)
         else:
-            meta = self.metadata_extractor.extract(record.content_type, (pw_info or {}).get("html", ""), url=final_url, jurisdiction=record.jurisdiction)
-            record.page_title = record.page_title or meta.get("title", "")
+            page_html = (pw_info or {}).get("html", "") or check.get("html", "")
+            meta = self.metadata_extractor.extract(record.content_type, page_html, url=final_url, jurisdiction=record.jurisdiction)
+            record.page_title = record.page_title or meta.get("title", "") or check.get("page_title", "") or link_desc
             record.source_organisation = record.source_organisation or meta.get("organisation", "")
-            text_sample = meta.get("text_sample", "") or (pw_info or {}).get("text", "")
+            text_sample = meta.get("text_sample", "") or (pw_info or {}).get("text", "") or re.sub(r"<[^>]+>", " ", page_html)[:4000]
             doc_refs = VersionChainEngine.extract_references(text_sample)
             extracted_dates_detail = UniversalDateEngine.extract_dates(text_sample, url=final_url, jurisdiction=record.jurisdiction)
+
+        # Safeguard: Ensure page_title is NEVER a technical error title
+        if any(re.search(pat, record.page_title or "", re.I) for pat in TECHNICAL_TITLE_PATTERNS):
+            record.technical_page_title = record.technical_page_title or record.page_title
+            record.page_title = link_desc or ""
 
         record.extracted_dates_detail = json.dumps(extracted_dates_detail)
         record.document_references = json.dumps([r["target_document"] for r in doc_refs])
@@ -596,7 +652,8 @@ class PipelineOrchestrator:
         ai_result = self.ai_evaluator.evaluate(record, metadata)
 
         needs_replacement = (
-            record.technical_status in ("BROKEN", "HTTP_404", "SOFT_404", "ACCESS_BLOCKED", "HOMEPAGE_REDIRECT")
+            record.technical_status in ("BROKEN", "HTTP_404", "SOFT_404", "ACCESS_BLOCKED", "BOT_PROTECTION", "ACCESS_RESTRICTED", "HOMEPAGE_REDIRECT", "CONNECTION_ERROR")
+            or record.access_status in ("ACCESS_DENIED", "CLOUDFLARE_CHALLENGE", "BOT_PROTECTION", "CONNECTION_ERROR")
             or "TIER_3" in record.authority_status
             or record.regulatory_status in ("SUPERSEDED", "REPEALED", "AMENDED", "CONSULTATION")
         )
@@ -678,4 +735,5 @@ class PipelineOrchestrator:
         record.updated_at = datetime.now(timezone.utc)
 
         self.repository.upsert_link(record)
+        print(f"[{record.country}] Audited: {raw_url[:65]} -> {record.final_decision} ({record.regulatory_status})", flush=True)
         return record

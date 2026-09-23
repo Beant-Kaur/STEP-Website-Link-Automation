@@ -31,8 +31,11 @@ class UrlNormalizer:
         # Handle concatenated URLs or bad pastes
         concat_match = re.search(r"(https?://.*?)(https?://.*)", url, re.I)
         if concat_match:
-            # If two URLs concatenated, prefer the second if deeper or first
-            url = concat_match.group(2)
+            # If two URLs concatenated, prefer the second if deeper or official
+            second_url = concat_match.group(2)
+            if "?" not in second_url and "&" in second_url:
+                second_url = second_url.replace("&", "?", 1)
+            url = second_url
 
         try:
             parsed = urlparse(url)
