@@ -655,8 +655,7 @@
         <div class="notif-list" id="notif-list">
           <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">Loading alerts...</div>
         </div>
-        <div class="popover-foot">
-          <button class="btn-popover-action" id="notif-btn-audit">Run Deep Audit</button>
+        <div class="popover-foot" style="justify-content:flex-end;">
           <button class="btn-popover-ghost" id="notif-btn-clear">Dismiss All</button>
         </div>
       </div>
@@ -687,14 +686,6 @@
             <span class="profile-meta-k">Environment</span>
             <span class="profile-meta-v">Vercel Production v2.4</span>
           </div>
-        </div>
-        <div class="profile-actions">
-          <button class="profile-btn-primary" id="profile-btn-run">
-            <span>✦</span> Run Autonomous Agent
-          </button>
-          <button class="profile-btn-secondary" id="profile-btn-ledger">
-            <span>📋</span> View Kajabi Audit Ledger
-          </button>
         </div>
       </div>
     </div>
@@ -1547,30 +1538,29 @@ function renderNotifications() {
   }
 
   let html = '';
-  replaceRecs.forEach(r => {
-    const reasonShort = r.replacement_reason ? r.replacement_reason.split('.')[0] + '.' : 'Sovereign replacement link available.';
-    html += `
-      <div class="notif-item" data-id="${esc(r.link_id || r.id)}">
-        <div class="notif-icon warn">⚠️</div>
-        <div class="notif-content">
-          <div class="notif-title">${FLAGS[r.jurisdiction] || '🌐'} ${esc(r.jurisdiction)}: ${esc(cleanEnglishTitle(r.page_title))}</div>
-          <div class="notif-desc">${esc(reasonShort)}</div>
-          <div class="notif-time">Click to inspect and sync</div>
-        </div>
+  if (replaceRecs.length === 0) {
+    html = `
+      <div style="padding:28px 16px;text-align:center;color:var(--text-muted);font-size:12px;">
+        <div style="font-size:22px;margin-bottom:6px;color:#16a34a;">✓</div>
+        <div style="font-weight:600;color:var(--text-primary);">All Regulations In-Force</div>
+        <div style="margin-top:2px;">No link replacements currently required.</div>
       </div>
     `;
-  });
-
-  html += `
-    <div class="notif-item" id="notif-item-agent">
-      <div class="notif-icon ok">✦</div>
-      <div class="notif-content">
-        <div class="notif-title">Autonomous AI Audit Agent v2.4</div>
-        <div class="notif-desc">Deep Sovereign Recency Audit grounded against official gazettes ready to run.</div>
-        <div class="notif-time">System ready</div>
-      </div>
-    </div>
-  `;
+  } else {
+    replaceRecs.forEach(r => {
+      const reasonShort = r.replacement_reason ? r.replacement_reason.split('.')[0] + '.' : 'Sovereign replacement link available.';
+      html += `
+        <div class="notif-item" data-id="${esc(r.link_id || r.id)}">
+          <div class="notif-icon warn">⚠️</div>
+          <div class="notif-content">
+            <div class="notif-title">${FLAGS[r.jurisdiction] || '🌐'} ${esc(r.jurisdiction)}: ${esc(cleanEnglishTitle(r.page_title))}</div>
+            <div class="notif-desc">${esc(reasonShort)}</div>
+            <div class="notif-time">Click to inspect and sync</div>
+          </div>
+        </div>
+      `;
+    });
+  }
 
   list.innerHTML = html;
 
@@ -1584,14 +1574,6 @@ function renderNotifications() {
       }
     });
   });
-
-  const agentNotif = document.getElementById('notif-item-agent');
-  if (agentNotif) {
-    agentNotif.addEventListener('click', () => {
-      closeAllPopovers();
-      openAgentModal();
-    });
-  }
 }
 
 // Events
@@ -1612,15 +1594,12 @@ document.getElementById('audit-mbg').addEventListener('click', e => { if (e.targ
 // Popover events
 document.getElementById('btn-notifications')?.addEventListener('click', toggleNotifPopover);
 document.getElementById('btn-profile')?.addEventListener('click', toggleProfilePopover);
-document.getElementById('notif-btn-audit')?.addEventListener('click', () => { closeAllPopovers(); openAgentModal(); });
 document.getElementById('notif-btn-clear')?.addEventListener('click', () => {
   const badge = document.getElementById('notif-badge');
   if (badge) badge.style.display = 'none';
   closeAllPopovers();
   toast('Notifications dismissed');
 });
-document.getElementById('profile-btn-run')?.addEventListener('click', () => { closeAllPopovers(); openAgentModal(); });
-document.getElementById('profile-btn-ledger')?.addEventListener('click', () => { closeAllPopovers(); openAuditModal(); });
 document.addEventListener('click', e => {
   if (!e.target.closest('.topbar-popover-wrap')) closeAllPopovers();
 });
